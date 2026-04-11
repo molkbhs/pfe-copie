@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analyse - BusinessApp</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
+<meta name="description" content="Tableau de bord BI executif - KPI, visualisations et analyses IA">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="css/page-bg.css" rel="stylesheet">
+<link href="css/topbar-shell.css" rel="stylesheet">
+<link href="css/app-ux.css" rel="stylesheet">
+<link href="css/charts-global-theme.css" rel="stylesheet">
+<link href="css/charts-executive.css" rel="stylesheet">
+<script src="js/theme-manager.js"></script>
+<script src="js/ui-core.js"></script>
+<script>
+  const __user = window.UICore?.getUser?.();
+  if (!window.UICore?.isAuthenticated?.(__user)) {
+    window.location.replace('index.html');
+  }
+</script>
+</head>
+<body>
+
+<div class="page-bg">
+  <div class="bg-img"></div>
+  <div class="bg-veil"></div>
+  <div class="bg-grid"></div>
+</div>
+
+<div class="page-shell">
+  <nav class="topbar">
+    <a class="brand" href="dash.html"><span class="brand-dot"></span>Finova</a>
+
+    <div class="tnav nav-left">
+      <a href="dash.html">Import de données</a>
+      <a href="charts.html" class="active">Analyse</a>
+      <a href="assistance.html">Assistance</a>
+    </div>
+
+    <div class="tnav nav-right">
+      <a href="profile.html">Profil</a>
+      <a href="contact.html">Contact</a>
+      <a href="admin.html" id="navAdminItem" style="display:none;">Admin</a>
+    </div>
+
+    <div class="tr2">
+      <button class="theme-toggle" id="themeToggle" type="button">
+        <span id="themeIcon"><i class="bi bi-moon-stars-fill"></i></span>
+        <span id="themeLabel">Sombre</span>
+      </button>
+      <div class="upill" id="userPill">
+        <div class="uav" id="userAvatar">U</div>
+        <span id="navUser">Chargement...</span>
+        <div class="udrop" id="userMenu">
+          <div class="udrop-header">
+            <div class="uav-lg" id="menuUserAvatarLg">U</div>
+            <div class="udrop-name" id="menuUserName">Utilisateur</div>
+            <div class="udrop-email" id="menuUserEmail">email@example.com</div>
+          </div>
+          <div class="udrop-actions">
+            <a href="profile.html"><i class="bi bi-person-circle"></i> Gerer votre compte</a>
+          </div>
+          <div class="udrop-footer">
+            <button id="logoutNav" class="lo-btn">Se deconnecter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <section class="bi-filter-shell">
+    <div class="bi-filter-row">
+      <select id="fQuarter" class="bi-filter-item">
+        <option value="">Trimestre: Tous</option>
+      </select>
+      <select id="fDept" class="bi-filter-item">
+        <option value="">Departement: Tous</option>
+      </select>
+      <select id="fPeriod" class="bi-filter-item">
+        <option value="">Periode: Toutes</option>
+      </select>
+      <select id="fTypeDepense" class="bi-filter-item">
+        <option value="">Type depense: Tous</option>
+      </select>
+      <select id="fTypeTrans" class="bi-filter-item">
+        <option value="">Type transaction: Tous</option>
+      </select>
+      <input id="fSearch" class="bi-filter-item" type="search" placeholder="Recherche globale...">
+
+      <div class="bi-filter-actions">
+        <span class="bi-filter-badge" id="activeCount">0 filtres</span>
+        <button class="bi-btn-outline" id="btnReset"><i class="bi bi-arrow-counterclockwise me-1"></i>Reinitialiser</button>
+        <button class="bi-btn-solid" id="btnRefreshKPI"><i class="bi bi-arrow-repeat me-1"></i>Recalculer les KPI</button>
+        <div class="btn-group export-dropdown">
+          <button class="bi-btn-outline dropdown-toggle" type="button" id="btnExportMenu" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-download me-1"></i>Exporter les KPI
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end export-dropdown-menu" aria-labelledby="btnExportMenu">
+            <li><button class="dropdown-item" id="exportKpiImage" type="button"><i class="bi bi-card-image me-2"></i>Exporter en image</button></li>
+            <li><button class="dropdown-item" id="exportKpiPdf" type="button"><i class="bi bi-file-earmark-pdf me-2"></i>Exporter en PDF</button></li>
+            <li><button class="dropdown-item" id="exportKpiDocx" type="button"><i class="bi bi-file-earmark-word me-2"></i>Exporter en DOCX</button></li>
+            <li><button class="dropdown-item" id="exportKpiCsv" type="button"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Exporter en CSV</button></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="analytics-wrap">
+    <div id="dashboardCaptureArea">
+    <section class="exec-header">
+      <div class="row g-3 align-items-center">
+        <div class="col-lg-8">
+          <h1 class="exec-title"><i class="bi bi-bar-chart-line-fill me-2"></i>Tableau de bord financier executif</h1>
+          <p class="exec-subtitle" id="dataSubtitle">Chargement des donnees analytiques...</p>
+        </div>
+        <div class="col-lg-4">
+          <div class="exec-meta" id="lastUpdated">Derniere mise a jour: --</div>
+        </div>
+      </div>
+
+      <div class="quick-focus" id="focusChips">
+        <button class="focus-chip active" data-focus="all"><i class="bi bi-grid-1x2-fill me-1"></i>Vue globale</button>
+        <button class="focus-chip" data-focus="finance"><i class="bi bi-currency-exchange me-1"></i>Finance</button>
+        <button class="focus-chip" data-focus="operations"><i class="bi bi-diagram-3-fill me-1"></i>Operations</button>
+        <button class="focus-chip" data-focus="risk"><i class="bi bi-exclamation-triangle-fill me-1"></i>Risque</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2 class="section-title"><i class="bi bi-speedometer2"></i>KPI executifs <span id="kpiCountBadge" class="bi-filter-badge ms-2">0</span></h2>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2 class="section-title"><i class="bi bi-lightning-charge-fill"></i>Analyses et signaux</h2>
+      </div>
+      <div class="alert-grid" id="insightCards"></div>
+    </section>
+
+    <section class="charts-zone">
+      <div class="section-head">
+        <h2 class="section-title"><i class="bi bi-graph-up-arrow"></i>Recit analytique</h2>
+      </div>
+
+      <article class="chart-card">
+        <h6>Evolution mensuelle Revenus / Depenses / Solde net</h6>
+        <p>Vue de pilotage principale pour suivre la performance financiere.</p>
+        <div class="chart-canvas-wrap"><canvas id="chartExecutiveTrend"></canvas></div>
+      </article>
+
+      <div class="chart-grid-3">
+        <article class="chart-card">
+          <h6>Repartition des depenses</h6>
+          <p>Poids des categories de depense sur la periode active.</p>
+          <div class="chart-canvas-wrap compact"><canvas id="chartExpenseBreakdown"></canvas></div>
+        </article>
+        <article class="chart-card">
+          <h6>Repartition des transactions</h6>
+          <p>Distribution des transactions par type.</p>
+          <div class="chart-canvas-wrap compact"><canvas id="chartTransactionMix"></canvas></div>
+        </article>
+        <article class="chart-card">
+          <h6>Part de CA par departement</h6>
+          <p>Contribution relative des departements.</p>
+          <div class="chart-canvas-wrap compact"><canvas id="chartDepartmentShare"></canvas></div>
+        </article>
+      </div>
+
+      <div class="chart-grid-2">
+        <article class="chart-card">
+          <h6>Performance departementale</h6>
+          <p>Comparatif net des meilleures et moins bonnes entites.</p>
+          <div class="chart-canvas-wrap short"><canvas id="chartDeptPerformance"></canvas></div>
+        </article>
+        <article class="chart-card">
+          <h6>Variance et degradation</h6>
+          <p>Solde net et variation mensuelle pour detection des alertes.</p>
+          <div class="chart-canvas-wrap short"><canvas id="chartRiskSignals"></canvas></div>
+        </article>
+      </div>
+
+      <div class="chart-grid-2">
+        <article class="chart-card">
+          <h6>Principaux contributeurs</h6>
+          <ul id="topContributors" class="contrib-list"></ul>
+        </article>
+        <article class="chart-card">
+          <h6>Contributeurs en baisse</h6>
+          <ul id="bottomContributors" class="contrib-list"></ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="ai-shell">
+      <article class="ai-card">
+        <div class="ai-title">
+          <h6><i class="bi bi-robot me-2"></i>Assistant BI</h6>
+          <span class="ai-badge">Contexte actif</span>
+        </div>
+        <textarea id="aiQuestion" class="ai-textarea" placeholder="Ex: Quels departements degradent le solde net ce trimestre ?"></textarea>
+        <div class="d-flex gap-2 mt-2">
+          <button id="aiSendBtn" class="bi-btn-solid" type="button"><i class="bi bi-send-check-fill me-1"></i>Analyser</button>
+        </div>
+        <div id="aiSuggestions" class="ai-suggestions">
+          <button class="ai-chip">Quels signaux critiques dois-je surveiller ?</button>
+          <button class="ai-chip">Resumer la performance du mois</button>
+          <button class="ai-chip">Comparer les meilleurs et les plus faibles departements</button>
+          <button class="ai-chip">Quelles depenses expliquent la baisse ?</button>
+        </div>
+        <div id="aiResponse" class="ai-response"></div>
+      </article>
+
+      <article class="ai-card">
+        <div class="ai-title">
+          <h6><i class="bi bi-journal-richtext me-2"></i>Synthese de direction</h6>
+        </div>
+        <ul id="summaryMetrics" class="metric-list"></ul>
+      </article>
+    </section>
+    </div>
+
+    <section class="table-card">
+      <div class="table-toolbar">
+        <h2 class="section-title mb-0"><i class="bi bi-table"></i>Tableau detaille <span id="tblCountBadge" class="bi-filter-badge ms-2">0 lignes</span></h2>
+        <div class="table-mode">
+          <button id="tableModeKpi" class="active" type="button">KPI</button>
+          <button id="tableModeTxn" type="button">Transactions</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="analytics-table" id="analyticsTable">
+          <thead id="tableHead"></thead>
+          <tbody id="tableTbody"></tbody>
+        </table>
+      </div>
+      <div id="pager" class="pager"></div>
+    </section>
+
+    <section id="emptyState" class="empty-block" style="display:none; margin-top:16px;">
+      <i class="bi bi-inbox-fill"></i>
+      <h5 class="mt-2 mb-1">Aucune donnee analytique</h5>
+      <p class="mb-0" id="emptyStateMessage">Importez un fichier via la page <a href="dash.html">Data Import</a> pour alimenter ce tableau de bord BI.</p>
+    </section>
+  </main>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="js/charts.js"></script>
+</body>
+</html>

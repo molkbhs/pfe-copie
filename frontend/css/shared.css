@@ -1,0 +1,204 @@
+/* ══════════════════════════════════════════════
+   shared.css  —  Modern BI Design System
+   Glassmorphism · Premium Teal · Grid Background
+══════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* --- Colors --- */
+  --primary:      #1fb5b5;      /* Teal */
+  --primary-dark: #137f86;
+  --secondary:    #0f3950;      /* Deep Navy */
+  --accent:       #7c6ff7;      /* Indigo */
+  --success:      #10b981;
+  --warning:      #f59e0b;
+  --error:        #ef4444;
+  --neutral:      #64748b;
+
+  /* --- Light Theme Tokens --- */
+  --bg-light:      #f8fafc;
+  --card-bg:       rgba(255, 255, 255, 0.75);
+  --text-main:     #1e293b;
+  --text-muted:    #64748b;
+  --border:        rgba(31, 181, 181, 0.2);
+  --glass-border:  rgba(255, 255, 255, 0.4);
+  --shadow:        0 10px 30px -10px rgba(0, 0, 0, 0.1);
+  --navbar-bg:     rgba(31, 181, 181, 0.9);
+}
+
+/* --- Dark Theme Tokens --- */
+body.dark-mode {
+  --bg-light:      #0f172a;      /* Slate 900 */
+  --card-bg:       rgba(30, 41, 59, 0.75);
+  --text-main:     #f8fafc;
+  --text-muted:    #94a3b8;
+  --border:        rgba(31, 181, 181, 0.3);
+  --glass-border:  rgba(255, 255, 255, 0.05);
+  --shadow:        0 20px 40px -15px rgba(0, 0, 0, 0.4);
+  --navbar-bg:     rgba(15, 23, 42, 0.9);
+}
+
+/* ══════════════════════════════════════════════
+   GLOBAL BASE
+══════════════════════════════════════════════ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-light);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  transition: background-color 0.3s ease;
+}
+
+/* --- BI GRID BACKGROUND --- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(31, 181, 181, 0.18) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(124, 111, 247, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(31, 181, 181, 0.14) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(15, 57, 80, 0.18) 0px, transparent 50%);
+  z-index: -3;
+  pointer-events: none;
+}
+
+/* Square Grid + Dot Grid */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: 
+    radial-gradient(rgba(31, 181, 181, 0.08) 1px, transparent 1px), /* Dot grid */
+    linear-gradient(rgba(31, 181, 181, 0.03) 1px, transparent 1px), /* Square grid H */
+    linear-gradient(90deg, rgba(31, 181, 181, 0.03) 1px, transparent 1px); /* Square grid V */
+  background-size: 25px 25px, 100px 100px, 100px 100px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 1;
+}
+
+/* Floating BI Ornaments */
+.bi-ornament {
+  position: fixed;
+  pointer-events: none;
+  z-index: -2;
+  opacity: 0.05;
+  filter: blur(1px);
+}
+body.dark-mode .bi-ornament { opacity: 0.12; filter: blur(0.5px); }
+
+/* ══════════════════════════════════════════════
+   COMPONENTS
+══════════════════════════════════════════════ */
+
+/* --- Navbar --- */
+.navbar {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: var(--navbar-bg) !important;
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 0;
+  transition: all 0.3s ease;
+}
+
+.navbar-brand {
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  color: white !important;
+}
+
+/* --- Glass Cards --- */
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+}
+
+/* --- Typography --- */
+h1, h2, h3, h4 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* --- Buttons --- */
+.btn-premium {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-premium-primary {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  box-shadow: 0 4px 15px rgba(31, 181, 181, 0.4);
+}
+
+.btn-premium-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(31, 181, 181, 0.5);
+}
+
+/* --- Transitions --- */
+.anim-fade-up {
+  animation: fadeUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════
+   AUTH SPECIFIC (Centered)
+══════════════════════════════════════════════ */
+
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 450px;
+  padding: 3rem 2.5rem;
+}

@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistance Stratégique — BusinessApp</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="css/page-bg.css" rel="stylesheet">
+    <link href="css/topbar-shell.css" rel="stylesheet">
+    <link href="css/app-ux.css" rel="stylesheet">
+    <link href="css/charts-global-theme.css" rel="stylesheet">
+
+    <style>
+        /* ── KPI SUMMARY BAR ── */
+        .kpi-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .kpi-tile {
+            background: var(--bg-white, #fff);
+            border-radius: 16px;
+            padding: 20px 22px;
+            border: 1px solid var(--border, #e5e7eb);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: box-shadow 0.2s, transform 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.09); }
+        .kpi-tile::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            border-radius: 4px 0 0 4px;
+        }
+        .kpi-tile.green::before  { background: #10b981; }
+        .kpi-tile.red::before    { background: #ef4444; }
+        .kpi-tile.blue::before   { background: #3b82f6; }
+        .kpi-tile.amber::before  { background: #f59e0b; }
+        .kpi-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted, #6b7280); }
+        .kpi-value { font-size: 1.45rem; font-weight: 800; font-family: 'IBM Plex Mono', monospace; color: var(--text, #111827); line-height: 1.1; }
+        .kpi-sub   { font-size: 0.72rem; color: var(--text-muted, #6b7280); }
+        .kpi-loading { opacity: 0.4; font-style: italic; }
+
+        /* ── SECTION CARDS ── */
+        .sim-card {
+            background: var(--bg-white, #fff);
+            border-radius: 16px;
+            border: 1px solid var(--border, #e5e7eb);
+            padding: 28px;
+            height: 100%;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .sim-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.08); transform: translateY(-2px); }
+
+        .card-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .card-icon {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; flex-shrink: 0;
+        }
+        .card-icon.blue  { background: #eff6ff; }
+        .card-icon.red   { background: #fef2f2; }
+        .card-icon.green { background: #f0fdf4; }
+        .card-icon.amber { background: #fffbeb; }
+        .card-icon.violet{ background: #f5f3ff; }
+
+        /* ── SLIDER ── */
+        .range-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .range-row span:first-child { font-size: 0.82rem; font-weight: 600; color: var(--text, #111); }
+        .range-badge {
+            font-size: 0.78rem; font-weight: 700; font-family: 'IBM Plex Mono', monospace;
+            background: var(--primary, #1fb5b5); color: #fff;
+            padding: 2px 10px; border-radius: 20px;
+        }
+        .form-range::-webkit-slider-thumb { background: var(--primary, #1fb5b5); }
+
+        /* ── RESULT BOX ── */
+        .result-box {
+            background: var(--bg-surface, #f9fafb);
+            border-radius: 12px;
+            padding: 14px 18px;
+            border-left: 4px solid var(--primary, #1fb5b5);
+            font-size: 0.88rem;
+            margin-top: 14px;
+            animation: fadeSlide .3s ease;
+        }
+        .result-box.danger { border-left-color: #ef4444; }
+        .result-box.warning { border-left-color: #f59e0b; }
+        .result-box.success { border-left-color: #10b981; }
+        @keyframes fadeSlide { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+        .result-amount {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1.3rem;
+            font-weight: 700;
+            display: block;
+            margin: 4px 0 2px;
+        }
+
+        /* ── RECOMMANDATIONS ── */
+        .reco-card {
+            background: var(--bg-white, #fff);
+            border-radius: 16px;
+            border: 1px solid var(--border, #e5e7eb);
+            padding: 24px 28px;
+        }
+        .reco-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .reco-item {
+            padding: 18px;
+            border-radius: 12px;
+            background: var(--bg-surface, #f9fafb);
+            border: 1px solid var(--border, #e5e7eb);
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .reco-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .07em; padding: 3px 10px; border-radius: 20px;
+            width: fit-content;
+        }
+        .reco-badge.green  { background: #dcfce7; color: #15803d; }
+        .reco-badge.amber  { background: #fef9c3; color: #92400e; }
+        .reco-badge.blue   { background: #dbeafe; color: #1e40af; }
+        .reco-badge.red    { background: #fee2e2; color: #b91c1c; }
+        .reco-text { font-size: 0.84rem; line-height: 1.5; color: var(--text, #111); }
+        .reco-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1.05rem; font-weight: 700;
+            color: var(--primary, #1fb5b5);
+        }
+
+        /* ── CHATBOT ── */
+        .chat-wrap {
+            background: var(--bg-white, #fff);
+            border-radius: 16px;
+            border: 1px solid var(--border, #e5e7eb);
+            overflow: hidden;
+        }
+        .chat-header {
+            background: var(--primary, #1fb5b5);
+            padding: 16px 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .chat-header span { font-weight: 700; color: #fff; font-size: 0.95rem; }
+        .chat-status { width: 8px; height: 8px; border-radius: 50%; background: #a7f3d0; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:.4; } }
+        .chat-body { height: 280px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+        .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 0.84rem; line-height: 1.5; }
+        .chat-msg.bot { background: var(--bg-surface, #f3f4f6); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .chat-msg.user { background: var(--primary, #1fb5b5); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .chat-footer { padding: 12px 16px; border-top: 1px solid var(--border, #e5e7eb); display: flex; gap: 8px; }
+        .chat-input {
+            flex: 1; border: 1.5px solid var(--border, #e5e7eb); border-radius: 10px;
+            padding: 8px 14px; font-size: 0.85rem; background: transparent;
+            color: var(--text, #111); outline: none;
+        }
+        .chat-input:focus { border-color: var(--primary, #1fb5b5); }
+        .chat-send-btn {
+            background: var(--primary, #1fb5b5); color: #fff;
+            border: none; border-radius: 10px; padding: 8px 16px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            transition: opacity .2s;
+        }
+        .chat-send-btn:hover { opacity: .88; }
+
+        /* ── WHAT-IF IMPACT METER ── */
+        .impact-meter {
+            margin-top: 14px;
+        }
+        .meter-bar-bg {
+            height: 10px; border-radius: 8px;
+            background: var(--bg-surface, #e5e7eb);
+            overflow: hidden;
+        }
+        .meter-bar-fill {
+            height: 100%; border-radius: 8px;
+            transition: width .6s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* ── DARK THEME TWEAKS ── */
+        [data-theme="dark"] .kpi-tile,
+        [data-theme="dark"] .sim-card,
+        [data-theme="dark"] .reco-card,
+        [data-theme="dark"] .reco-item,
+        [data-theme="dark"] .chat-wrap { background: #1f232a; border-color: #2d3340; }
+        [data-theme="dark"] .kpi-value,
+        [data-theme="dark"] .reco-text { color: #f1f5f9; }
+        [data-theme="dark"] .result-box { background: #161a20; }
+        [data-theme="dark"] .chat-msg.bot { background: #2d3340; color: #e2e8f0; }
+        [data-theme="dark"] .card-icon.blue  { background: #1e3a5f; }
+        [data-theme="dark"] .card-icon.red   { background: #4c1d1d; }
+        [data-theme="dark"] .card-icon.green { background: #14352a; }
+        [data-theme="dark"] .card-icon.amber { background: #3b2a0d; }
+        [data-theme="dark"] .chat-input { border-color: #2d3340; color: #e2e8f0; }
+        [data-theme="dark"] .reco-item { background: #161a20; }
+
+        .page-shell > .container {
+            margin-left: auto !important;
+            margin-right: auto !important;
+            width: 100%;
+            max-width: 1320px;
+        }
+
+        /* ── LOADING SKELETON ── */
+        .skeleton { border-radius: 6px; background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+        [data-theme="dark"] .skeleton { background: linear-gradient(90deg, #2d3340 25%, #3a414f 50%, #2d3340 75%); background-size: 200% 100%; }
+        @keyframes shimmer { 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .kpi-bar { grid-template-columns: repeat(2, 1fr); }
+            .reco-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .kpi-bar { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+
+    <script src="js/theme-manager.js"></script>
+    <script src="js/ui-core.js"></script>
+</head>
+<body>
+<div class="page-bg">
+    <div class="bg-img"></div>
+    <div class="bg-veil"></div>
+    <div class="bg-grid"></div>
+</div>
+
+<div class="page-shell">
+    <!-- ── TOPBAR ── -->
+    <nav class="topbar">
+        <a class="brand" href="dash.html"><span class="brand-dot"></span>Finova</a>
+        <div class="tnav nav-left">
+            <a href="dash.html">Import de données</a>
+            <a href="charts.html">Analyse</a>
+            <a href="assistance.html" class="active">Assistance</a>
+        </div>
+        <div class="tnav nav-right">
+            <a href="profile.html">Profil</a>
+            <a href="contact.html">Contact</a>
+            <a href="admin.html" id="navAdminItem" style="display:none;">Admin</a>
+        </div>
+        <div class="tr2">
+            <button class="theme-toggle" id="themeToggle" type="button">
+                <span id="themeIcon"><i class="bi bi-moon-stars-fill"></i></span>
+                <span id="themeLabel">Sombre</span>
+            </button>
+            <div class="upill" id="userPill">
+                <div class="uav" id="userAvatar">U</div>
+                <span id="navUser">Chargement...</span>
+                <div class="udrop" id="userMenu">
+                    <div class="udrop-header">
+                        <div class="uav-lg" id="menuUserAvatarLg">U</div>
+                        <div class="udrop-name" id="menuUserName">Utilisateur</div>
+                        <div class="udrop-email" id="menuUserEmail">email@example.com</div>
+                    </div>
+                    <div class="udrop-actions">
+                        <a href="profile.html">
+                            <i class="bi bi-person-circle" style="font-size:1.1rem"></i> Gérer votre compte
+                        </a>
+                    </div>
+                    <div class="udrop-footer">
+                        <button id="logoutNav" class="lo-btn">Se déconnecter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+
+        <!-- ── HEADER ── -->
+        <header class="mb-4">
+            <h1 class="fw-800 mb-1">Aide à la Décision</h1>
+            <p class="text-muted mb-0">Simulations "What-If" basées sur vos données réelles — Valeurs en Dinars Tunisiens (DT)</p>
+        </header>
+
+        <!-- ── KPI BAR (live depuis /api/kpi) ── -->
+        <div class="kpi-bar" id="kpiBar">
+            <div class="kpi-tile green">
+                <div class="kpi-label">Solde Net</div>
+                <div class="kpi-value skeleton" id="kpi-solde" style="height:28px;width:70%;">&nbsp;</div>
+                <div class="kpi-sub" id="kpi-solde-sub">—</div>
+            </div>
+            <div class="kpi-tile green">
+                <div class="kpi-label">Revenus Totaux</div>
+                <div class="kpi-value skeleton" id="kpi-rev" style="height:28px;width:65%;">&nbsp;</div>
+                <div class="kpi-sub">Entrées cumulées</div>
+            </div>
+            <div class="kpi-tile red">
+                <div class="kpi-label">Dépenses Totales</div>
+                <div class="kpi-value skeleton" id="kpi-dep" style="height:28px;width:65%;">&nbsp;</div>
+                <div class="kpi-sub">Sorties cumulées</div>
+            </div>
+            <div class="kpi-tile blue">
+                <div class="kpi-label">Nb Transactions</div>
+                <div class="kpi-value skeleton" id="kpi-nb" style="height:28px;width:50%;">&nbsp;</div>
+                <div class="kpi-sub">Enregistrements</div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+
+            <!-- ── SIM 1 : RECRUTEMENT RH ── -->
+            <div class="col-md-6">
+                <div class="sim-card">
+                    <div class="card-title-row">
+                        <div class="card-icon blue"><i class="bi bi-people-fill"></i></div>
+                        <div>
+                            <div class="fw-700" style="font-size:.95rem;">Scénario RH — Recrutement</div>
+                            <div class="text-muted" style="font-size:.77rem;">Impact trésorerie à 6 mois</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <div class="range-row">
+                            <span>Nombre de recrues</span>
+                            <span class="range-badge" id="valRH">1</span>
+                        </div>
+                        <input type="range" class="form-range" min="1" max="20" value="1" id="inputRH" oninput="updateRH(this.value)">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-600">Salaire Mensuel Brut Moyen (DT)</label>
+                        <input type="number" class="form-control" id="salaryRH" value="2800" min="500" step="100">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-600">Charges patronales estimées (%)</label>
+                        <div class="range-row">
+                            <span style="font-size:.8rem;color:var(--text-muted)">Taux CNSS + autres</span>
+                            <span class="range-badge" id="valCharges">25%</span>
+                        </div>
+                        <input type="range" class="form-range" min="15" max="45" value="25" id="inputCharges" oninput="updateCharges(this.value)">
+                    </div>
+
+                    <button class="btn btn-primary w-100 fw-700" onclick="simulateRH()">
+                        Simuler l'impact RH
+                    </button>
+
+                    <div id="resRH" class="result-box d-none"></div>
+                </div>
+            </div>
+
+            <!-- ── SIM 2 : FOURNISSEUR ── -->
+            <div class="col-md-6">
+                <div class="sim-card">
+                    <div class="card-title-row">
+                        <div class="card-icon red"><i class="bi bi-box-seam-fill"></i></div>
+                        <div>
+                            <div class="fw-700" style="font-size:.95rem;">Scénario Achats — Inflation Fournisseur</div>
+                            <div class="text-muted" style="font-size:.77rem;">Nouveau seuil de rentabilité</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <div class="range-row">
+                            <span>Hausse des tarifs fournisseurs</span>
+                            <span class="range-badge" id="valFourn">0%</span>
+                        </div>
+                        <input type="range" class="form-range" min="0" max="50" value="0" id="inputFourn" oninput="updateFourn(this.value)">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-600">Montant achats mensuel actuel (DT)</label>
+                        <input type="number" class="form-control" id="montantAchats" value="50000" min="0" step="1000">
+                        <div class="form-text" id="hintAchats">Saisie manuelle ou récupérée depuis vos données</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-600">Marge actuelle (%)</label>
+                        <div class="range-row">
+                            <span style="font-size:.8rem;color:var(--text-muted)">Marge brute estimée</span>
+                            <span class="range-badge" id="valMarge">30%</span>
+                        </div>
+                        <input type="range" class="form-range" min="5" max="80" value="30" id="inputMarge" oninput="updateMarge(this.value)">
+                    </div>
+
+                    <button class="btn btn-danger w-100 fw-700" onclick="simulateFourn()">
+                        Calculer le risque fournisseur
+                    </button>
+
+                    <div id="resFourn" class="result-box d-none"></div>
+                </div>
+            </div>
+
+            <!-- ── SIM 3 : WHAT-IF TRANSACTION (connecté à l'API) ── -->
+            <div class="col-md-6">
+                <div class="sim-card">
+                    <div class="card-title-row">
+                        <div class="card-icon amber"><i class="bi bi-lightning-charge-fill"></i></div>
+                        <div>
+                            <div class="fw-700" style="font-size:.95rem;">Simulation Transaction — What-If</div>
+                            <div class="text-muted" style="font-size:.77rem;">Impact sur votre solde réel en base</div>
+                        </div>
+                    </div>
+
+                    <p class="text-muted small mt-2">"Si j'engage cette dépense, quel pourcentage de mes réserves est mobilisé ?"</p>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-600">Montant de la transaction (DT)</label>
+                        <input type="number" class="form-control" id="whatIfAmount" value="10000" min="0" step="500">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-600">Type de transaction</label>
+                        <select class="form-select" id="whatIfType">
+                            <option value="depense">Dépense</option>
+                            <option value="investissement">Investissement</option>
+                            <option value="recrutement">Recrutement</option>
+                            <option value="marketing">Marketing</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-warning w-100 fw-700 text-dark" onclick="simulateWhatIf()">
+                        Analyser l'impact réel
+                    </button>
+
+                    <div id="resWhatIf" class="result-box d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-600">Impact sur le solde</span>
+                            <span id="impactPercent" class="fw-800" style="font-family:'IBM Plex Mono',monospace;font-size:1.1rem;"></span>
+                        </div>
+                        <div class="impact-meter">
+                            <div class="meter-bar-bg">
+                                <div class="meter-bar-fill" id="meterFill" style="width:0%;background:#f59e0b;"></div>
+                            </div>
+                        </div>
+                        <p id="whatIfRec" class="mb-0 mt-2 small"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── SIM 4 : PRÉVISION BUDGET ── -->
+            <div class="col-md-6">
+                <div class="sim-card">
+                    <div class="card-title-row">
+                        <div class="card-icon violet"><i class="bi bi-graph-up-arrow"></i></div>
+                        <div>
+                            <div class="fw-700" style="font-size:.95rem;">Projection Budget — N+1</div>
+                            <div class="text-muted" style="font-size:.77rem;">Estimation sur base de vos KPIs réels</div>
+                        </div>
+                    </div>
+
+                    <p class="text-muted small mt-2">"Si la croissance se maintient à X%, quel sera mon CA prévisionnel ?"</p>
+
+                    <div class="mb-3">
+                        <div class="range-row">
+                            <span>Taux de croissance annuel</span>
+                            <span class="range-badge" id="valCroissance">+5%</span>
+                        </div>
+                        <input type="range" class="form-range" min="-30" max="50" value="5" id="inputCroissance" oninput="updateCroissance(this.value)">
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="range-row">
+                            <span>Réduction des dépenses</span>
+                            <span class="range-badge" id="valOptim">0%</span>
+                        </div>
+                        <input type="range" class="form-range" min="0" max="30" value="0" id="inputOptim" oninput="updateOptim(this.value)">
+                    </div>
+
+                    <button class="btn btn-outline-primary w-100 fw-700" onclick="simulateProjection()">
+                        Générer la projection N+1
+                    </button>
+
+                    <div id="resProjection" class="result-box d-none"></div>
+                </div>
+            </div>
+
+            <!-- ── RECOMMANDATIONS DYNAMIQUES ── -->
+            <div class="col-12">
+                <div class="reco-card">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div>
+                            <h5 class="fw-700 mb-0"><i class="bi bi-lightbulb-fill me-1"></i>Recommandations basées sur vos données réelles</h5>
+                            <span class="text-muted small">Calculées à partir de <strong id="recoTxCount">—</strong> transactions en base</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary fw-600" onclick="loadRecommandations()">
+                            <i class="bi bi-arrow-repeat me-1"></i>Actualiser
+                        </button>
+                    </div>
+                    <div class="reco-grid" id="recoGrid">
+                        <!-- Rempli dynamiquement -->
+                        <div class="reco-item"><div class="skeleton" style="height:14px;border-radius:4px;margin-bottom:8px;"></div><div class="skeleton" style="height:40px;border-radius:4px;"></div></div>
+                        <div class="reco-item"><div class="skeleton" style="height:14px;border-radius:4px;margin-bottom:8px;"></div><div class="skeleton" style="height:40px;border-radius:4px;"></div></div>
+                        <div class="reco-item"><div class="skeleton" style="height:14px;border-radius:4px;margin-bottom:8px;"></div><div class="skeleton" style="height:40px;border-radius:4px;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── CHATBOT ── -->
+            <div class="col-12">
+                <div class="chat-wrap">
+                    <div class="chat-header">
+                        <div class="chat-status"></div>
+                        <span>Assistant BusinessApp — Questions sur vos données</span>
+                    </div>
+                    <div class="chat-body" id="chatBody">
+                        <div class="chat-msg bot"><i class="bi bi-robot me-1"></i>Bonjour ! Je peux répondre à vos questions sur vos revenus, dépenses, transactions ou utilisateurs. Essayez : <em>"Quel est mon solde ?"</em> ou <em>"Combien de transactions ?"</em></div>
+                    </div>
+                    <div class="chat-footer">
+                        <input class="chat-input" id="chatInput" placeholder="Posez votre question..." onkeydown="if(event.key==='Enter') sendChat()">
+                        <button class="chat-send-btn" onclick="sendChat()">Envoyer</button>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /row -->
+    </div><!-- /container -->
+</div><!-- /page-shell -->
+
+<script>
+// ════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════
+function fmtDT(val) {
+    if (val === null || val === undefined) return '—';
+    return new Intl.NumberFormat('fr-TN', { maximumFractionDigits: 0 }).format(val) + ' DT';
+}
+function fmtNum(val) {
+    return new Intl.NumberFormat('fr-TN').format(val);
+}
+
+const CURRENT_USER = window.UICore?.bootstrapAuthenticatedPage?.({
+    requireAuth: true,
+    refreshProfile: true
+}) || null;
+
+function getUser() {
+    if (CURRENT_USER) return CURRENT_USER;
+    return window.UICore?.getUser?.() || null;
+}
+function getAuthHeader() {
+    const u = getUser();
+    return u ? { 'Authorization': 'Bearer ' + u.id, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+// ════════════════════════════════════════════
+// LOAD KPIs (live from DB)
+// ════════════════════════════════════════════
+let _cachedKpis = {};
+
+async function loadKPIs() {
+    try {
+        const res = await fetch('/api/kpi?limit=200', { headers: getAuthHeader() });
+        const data = await res.json();
+        if (!data.success) return;
+
+        const map = {};
+        for (const k of data.kpis) {
+            if (k.periode === 'global') map[k.kpiNom] = k.valeur;
+        }
+        _cachedKpis = map;
+
+        function setKpi(elId, val, subText) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            el.classList.remove('skeleton');
+            el.style.height = '';
+            el.style.width = '';
+            el.textContent = val;
+        }
+
+        const solde = map['Solde_Net'] ?? null;
+        const rev   = map['Revenus']   ?? null;
+        const dep   = map['Dépenses']  ?? null;
+        const nb    = map['Nb_Transactions'] ?? null;
+
+        setKpi('kpi-solde', solde !== null ? fmtDT(solde) : 'N/A');
+        setKpi('kpi-rev',   rev   !== null ? fmtDT(rev)   : 'N/A');
+        setKpi('kpi-dep',   dep   !== null ? fmtDT(dep)   : 'N/A');
+        setKpi('kpi-nb',    nb    !== null ? fmtNum(nb)    : 'N/A');
+
+        const subEl = document.getElementById('kpi-solde-sub');
+        if (subEl && solde !== null && rev !== null && rev > 0) {
+            const ratio = (solde / rev * 100).toFixed(1);
+            subEl.textContent = `${ratio}% des revenus nets`;
+        }
+
+        // Pré-remplir le montant achats avec les dépenses réelles si dispo
+        if (dep !== null) {
+            const mA = document.getElementById('montantAchats');
+            if (mA) {
+                const mensuel = Math.round(dep / 12);
+                mA.value = mensuel;
+                document.getElementById('hintAchats').textContent = `Estimé depuis vos données (${fmtDT(dep)} / 12 mois)`;
+            }
+        }
+
+        loadRecommandations();
+    } catch(e) {
+        console.warn('[KPI load]', e);
+    }
+}
+
+// ════════════════════════════════════════════
+// RECOMMANDATIONS DYNAMIQUES
+// ════════════════════════════════════════════
+async function loadRecommandations() {
+    const grid = document.getElementById('recoGrid');
+    try {
+        const res  = await fetch('/api/analytics/data', { headers: getAuthHeader() });
+        const data = await res.json();
+        if (!data.success || !data.data?.length) return;
+
+        const rows = data.data;
+        document.getElementById('recoTxCount').textContent = fmtNum(data.total);
+
+        // Agrégation par département
+        const byDept = {};
+        let totalMontant = 0;
+        for (const r of rows) {
+            const dept = r.departement || 'Inconnu';
+            if (!byDept[dept]) byDept[dept] = 0;
+            byDept[dept] += Math.abs(parseFloat(r.Montant) || 0);
+            totalMontant += Math.abs(parseFloat(r.Montant) || 0);
+        }
+        const sortedDept = Object.entries(byDept).sort((a,b) => b[1]-a[1]);
+        const topDept = sortedDept[0];
+        const topDeptPct = totalMontant > 0 ? (topDept[1]/totalMontant*100).toFixed(1) : 0;
+
+        // Agrégation mensuelle (2 derniers mois)
+        const byMonth = {};
+        for (const r of rows) {
+            const ym = r.year_month || '0000-00';
+            if (!byMonth[ym]) byMonth[ym] = 0;
+            byMonth[ym] += parseFloat(r.Montant_Signe) || 0;
+        }
+        const months = Object.keys(byMonth).sort().slice(-3);
+        let trend = 'stable';
+        let trendPct = 0;
+        if (months.length >= 2) {
+            const last  = byMonth[months[months.length-1]];
+            const prev  = byMonth[months[months.length-2]];
+            if (prev !== 0) {
+                trendPct = ((last - prev) / Math.abs(prev) * 100).toFixed(1);
+                trend = trendPct > 0 ? 'hausse' : 'baisse';
+            }
+        }
+
+        // Ratio dépenses/revenus
+        const kRev = _cachedKpis['Revenus']  || 1;
+        const kDep = _cachedKpis['Dépenses'] || 0;
+        const depRatio = kRev > 0 ? (kDep / kRev * 100).toFixed(1) : 0;
+        const isDepHigh = depRatio > 70;
+
+        // Valeur moyenne
+        const avgTx = totalMontant / rows.length;
+
+        grid.innerHTML = `
+        <div class="reco-item">
+            <span class="reco-badge ${topDeptPct > 35 ? 'amber' : 'green'}">${topDeptPct > 35 ? '<i class="bi bi-exclamation-triangle-fill me-1"></i>Concentration' : '<i class="bi bi-check-circle-fill me-1"></i>Optimisation'}</span>
+            <div class="reco-value">${topDept ? topDept[0] : '—'}</div>
+            <div class="reco-text">Ce département concentre <strong>${topDeptPct}%</strong> du volume total des transactions. ${topDeptPct > 35 ? 'Pensez à diversifier les allocations.' : 'Distribution équilibrée.'}</div>
+        </div>
+        <div class="reco-item">
+            <span class="reco-badge ${trend==='baisse' ? 'red' : 'green'}">${trend==='baisse' ? '<i class="bi bi-graph-down-arrow me-1"></i>Tendance baisse' : '<i class="bi bi-graph-up-arrow me-1"></i>Tendance hausse'}</span>
+            <div class="reco-value">${trendPct > 0 ? '+' : ''}${trendPct}% ce mois</div>
+            <div class="reco-text">Variation du solde net entre les deux derniers mois disponibles (${months[months.length-2] || '—'} <i class="bi bi-arrow-right mx-1"></i> ${months[months.length-1] || '—'}).</div>
+        </div>
+        <div class="reco-item">
+            <span class="reco-badge ${isDepHigh ? 'red' : 'blue'}">${isDepHigh ? '<i class="bi bi-exclamation-triangle-fill me-1"></i>Ratio élevé' : '<i class="bi bi-lightbulb-fill me-1"></i>Conseil'}</span>
+            <div class="reco-value">Ratio Dép./Rev. : ${depRatio}%</div>
+            <div class="reco-text">${isDepHigh ? 'Vos dépenses représentent plus de 70% de vos revenus. Réduisez les charges non-stratégiques.' : `Transaction moyenne : ${fmtDT(Math.round(avgTx))}. Solide maîtrise des coûts.`}</div>
+        </div>`;
+    } catch(e) {
+        console.warn('[Recos]', e);
+    }
+}
+
+// ════════════════════════════════════════════
+// SIM 1 — RH
+// ════════════════════════════════════════════
+function updateRH(v)       { document.getElementById('valRH').textContent = v; }
+function updateCharges(v)  { document.getElementById('valCharges').textContent = v + '%'; }
+
+function simulateRH() {
+    const nb      = parseInt(document.getElementById('inputRH').value);
+    const sal     = parseFloat(document.getElementById('salaryRH').value) || 2800;
+    const charges = parseFloat(document.getElementById('inputCharges').value) / 100;
+    const total6  = nb * sal * (1 + charges) * 6;
+    const total12 = total6 * 2;
+
+    const res = document.getElementById('resRH');
+    res.classList.remove('d-none', 'danger', 'warning', 'success');
+
+    let lvl = total6 > 200000 ? 'danger' : total6 > 80000 ? 'warning' : 'success';
+    res.classList.add(lvl);
+
+    const solde = _cachedKpis['Solde_Net'] || null;
+    let soldeInfo = '';
+    if (solde !== null && solde > 0) {
+        const pct = (total6 / solde * 100).toFixed(1);
+        soldeInfo = `<div class="text-muted mt-1" style="font-size:.8rem;">Représente ${pct}% de votre solde net actuel (${fmtDT(solde)})</div>`;
+    }
+
+    res.innerHTML = `
+        <div class="fw-600 mb-1">Impact Trésorerie</div>
+        <span class="result-amount">${nb} recrues × ${fmtDT(sal)} brut/mois</span>
+        <div>À 6 mois : <strong>${fmtDT(Math.round(total6))}</strong></div>
+        <div class="text-muted" style="font-size:.8rem;">À 12 mois : ${fmtDT(Math.round(total12))} — Charges patronales : ${(charges*100).toFixed(0)}% incluses</div>
+        ${soldeInfo}`;
+}
+
+// ════════════════════════════════════════════
+// SIM 2 — FOURNISSEUR
+// ════════════════════════════════════════════
+function updateFourn(v)  { document.getElementById('valFourn').textContent = v + '%'; }
+function updateMarge(v)  { document.getElementById('valMarge').textContent = v + '%'; }
+
+function simulateFourn() {
+    const hausse  = parseFloat(document.getElementById('inputFourn').value) / 100;
+    const achats  = parseFloat(document.getElementById('montantAchats').value) || 50000;
+    const marge   = parseFloat(document.getElementById('inputMarge').value) / 100;
+
+    const surcoût     = achats * hausse;
+    const seuil_act   = achats / marge;             // CA nécessaire avec marge actuelle
+    const nouv_marge  = marge - hausse * (1 - marge); // Impact approximatif
+    const seuil_nouv  = achats * (1 + hausse) / Math.max(nouv_marge, 0.01);
+    const delta_seuil = seuil_nouv - seuil_act;
+    const impactMarge = (marge - nouv_marge) * 100;
+
+    const res = document.getElementById('resFourn');
+    res.classList.remove('d-none', 'danger', 'warning', 'success');
+    let lvl = hausse > 0.2 ? 'danger' : hausse > 0.08 ? 'warning' : 'success';
+    res.classList.add(lvl);
+
+    res.innerHTML = `
+        <div class="fw-600 mb-1">Analyse Risque Fournisseur</div>
+        <span class="result-amount">Surcoût mensuel : +${fmtDT(Math.round(surcoût))}</span>
+        <div>Marge estimée après hausse : <strong>${(nouv_marge*100).toFixed(1)}%</strong> (vs ${(marge*100).toFixed(0)}% actuelle)</div>
+        <div class="text-muted" style="font-size:.8rem;">Nouveau seuil de rentabilité : ${fmtDT(Math.round(seuil_nouv))} / mois (+${fmtDT(Math.round(delta_seuil))})</div>
+        <div class="mt-2 small ${lvl==='danger'?'text-danger':lvl==='warning'?'text-warning':'text-success'} fw-600">
+            ${hausse===0 ? '<i class="bi bi-check-circle-fill me-1"></i>Aucun impact — tarifs stables.' : hausse>0.2 ? '<i class="bi bi-exclamation-triangle-fill me-1"></i>Hausse critique. Renégocier ou trouver un fournisseur alternatif.' : hausse>0.08 ? '<i class="bi bi-exclamation-triangle-fill me-1"></i>Impact modéré. Révisez vos prix de vente sous 30 jours.' : '<i class="bi bi-check-circle-fill me-1"></i>Impact faible. Absorbable sans ajustement majeur.'}
+        </div>`;
+}
+
+// ════════════════════════════════════════════
+// SIM 3 — WHAT-IF (API)
+// ════════════════════════════════════════════
+async function simulateWhatIf() {
+    const amount = parseFloat(document.getElementById('whatIfAmount').value) || 0;
+    const type   = document.getElementById('whatIfType').value;
+    const res    = document.getElementById('resWhatIf');
+
+    try {
+        const r = await fetch('/api/assistance/simulate', {
+            method: 'POST',
+            headers: getAuthHeader(),
+            body: JSON.stringify({ amount, type })
+        });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+
+        const pct   = Math.min(d.impact, 100);
+        const color = pct > 20 ? '#ef4444' : pct > 5 ? '#f59e0b' : '#10b981';
+
+        res.classList.remove('d-none', 'danger', 'warning', 'success');
+        res.classList.add(pct > 20 ? 'danger' : pct > 5 ? 'warning' : 'success');
+
+        document.getElementById('impactPercent').textContent = pct.toFixed(2) + '% du solde';
+        document.getElementById('impactPercent').style.color = color;
+        document.getElementById('meterFill').style.width = pct + '%';
+        document.getElementById('meterFill').style.background = color;
+        document.getElementById('whatIfRec').textContent = d.recommendation || '';
+        document.getElementById('whatIfRec').className = 'mb-0 mt-2 small fw-600 ' + (pct > 20 ? 'text-danger' : pct > 5 ? 'text-warning' : 'text-success');
+
+    } catch(e) {
+        // Fallback si API non dispo : calcul côté client depuis KPIs
+        const solde = _cachedKpis['Solde_Net'] || null;
+        res.classList.remove('d-none');
+        if (solde && solde !== 0) {
+            const pct   = Math.min(Math.abs(amount / solde * 100), 100);
+            const color = pct > 20 ? '#ef4444' : pct > 5 ? '#f59e0b' : '#10b981';
+            document.getElementById('impactPercent').textContent = pct.toFixed(2) + '% du solde';
+            document.getElementById('impactPercent').style.color = color;
+            document.getElementById('meterFill').style.width = pct + '%';
+            document.getElementById('meterFill').style.background = color;
+            document.getElementById('whatIfRec').innerHTML = pct > 20
+                ? '<i class="bi bi-exclamation-triangle-fill me-1"></i>Risque élevé : cette opération mobilise une part significative de vos réserves.'
+                : pct > 5
+                    ? '<i class="bi bi-info-circle-fill me-1"></i>Vigilance modérée — vérifiez vos priorités de trésorerie.'
+                    : '<i class="bi bi-check-circle-fill me-1"></i>Risque faible — votre trésorerie peut absorber cette opération.';
+        } else {
+            res.innerHTML = '<span class="text-danger small">Impossible de récupérer le solde. Assurez-vous que les données sont bien importées.</span>';
+        }
+    }
+}
+
+// ════════════════════════════════════════════
+// SIM 4 — PROJECTION N+1
+// ════════════════════════════════════════════
+function updateCroissance(v) {
+    document.getElementById('valCroissance').textContent = (v > 0 ? '+' : '') + v + '%';
+}
+function updateOptim(v) { document.getElementById('valOptim').textContent = v + '%'; }
+
+function simulateProjection() {
+    const croissance = parseFloat(document.getElementById('inputCroissance').value) / 100;
+    const optim      = parseFloat(document.getElementById('inputOptim').value) / 100;
+
+    const caActuel  = _cachedKpis['CA_Total']   || _cachedKpis['Revenus'] || 0;
+    const depActuel = _cachedKpis['Dépenses']   || 0;
+    const solde     = _cachedKpis['Solde_Net']  || 0;
+
+    const caProj    = caActuel * (1 + croissance);
+    const depProj   = depActuel * (1 - optim);
+    const soldeProj = caProj - depProj;
+    const deltaSolde = soldeProj - solde;
+
+    const res = document.getElementById('resProjection');
+    res.classList.remove('d-none', 'danger', 'warning', 'success');
+    let lvl = soldeProj < 0 ? 'danger' : soldeProj < solde * 0.8 ? 'warning' : 'success';
+    res.classList.add(lvl);
+
+    res.innerHTML = `
+        <div class="fw-600 mb-2"><i class="bi bi-bar-chart-line-fill me-1"></i>Projection Annuelle N+1</div>
+        <div class="row g-2 text-center">
+            <div class="col-4">
+                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;font-weight:600;">CA Prévisionnel</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-weight:800;font-size:1rem;">${fmtDT(Math.round(caProj))}</div>
+            </div>
+            <div class="col-4">
+                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;font-weight:600;">Dépenses Prév.</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-weight:800;font-size:1rem;">${fmtDT(Math.round(depProj))}</div>
+            </div>
+            <div class="col-4">
+                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;font-weight:600;">Solde Prévisionnel</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-weight:800;font-size:1rem;color:${soldeProj>=0?'#10b981':'#ef4444'}">${fmtDT(Math.round(soldeProj))}</div>
+            </div>
+        </div>
+        <div class="mt-2 text-muted" style="font-size:.8rem;">
+            Variation vs. actuel : <strong style="color:${deltaSolde>=0?'#10b981':'#ef4444'}">${deltaSolde>=0?'+':''}${fmtDT(Math.round(deltaSolde))}</strong>
+            ${caActuel === 0 ? ' — <em>Importez vos données pour une projection précise.</em>' : ''}
+        </div>`;
+}
+
+// ════════════════════════════════════════════
+// CHATBOT
+// ════════════════════════════════════════════
+function addChatMsg(text, role) {
+    const body = document.getElementById('chatBody');
+    const div  = document.createElement('div');
+    div.className = `chat-msg ${role}`;
+    div.textContent = text;
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+}
+
+async function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msg   = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    addChatMsg(msg, 'user');
+
+    // Réponses enrichies côté client depuis les KPIs chargés
+    const low = msg.toLowerCase();
+    const solde = _cachedKpis['Solde_Net'];
+    const rev   = _cachedKpis['Revenus'];
+    const dep   = _cachedKpis['Dépenses'];
+    const nb    = _cachedKpis['Nb_Transactions'];
+
+    if (/(solde|balance|disponible|réserve)/.test(low) && solde !== undefined) {
+        addChatMsg(`Votre solde net actuel est de ${fmtDT(solde)}.`, 'bot'); return;
+    }
+    if (/(revenu|ca|chiffre|gagné|encaissement)/.test(low) && rev !== undefined) {
+        addChatMsg(`Vos revenus totaux s'élèvent à ${fmtDT(rev)}.`, 'bot'); return;
+    }
+    if (/(dépense|coût|charge|sorti|perdu|décaissement)/.test(low) && dep !== undefined) {
+        addChatMsg(`Vos dépenses totales sont de ${fmtDT(dep)}.`, 'bot'); return;
+    }
+    if (/(transaction|opération|mouvement|ligne)/.test(low) && nb !== undefined) {
+        addChatMsg(`Il y a ${fmtNum(nb)} transactions enregistrées en base.`, 'bot'); return;
+    }
+    if (/(ratio|rentabilité|marge)/.test(low) && rev && dep) {
+        const r = (dep/rev*100).toFixed(1);
+        addChatMsg(`Votre ratio dépenses/revenus est de ${r}%. ${r > 70 ? 'Il est élevé — attention à la rentabilité.' : 'Il est dans une plage acceptable.'}`, 'bot'); return;
+    }
+
+    // Fallback API chatbot
+    try {
+        const r = await fetch('/api/chatbot/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg })
+        });
+        const d = await r.json();
+        // Convertir les € en DT dans la réponse du bot
+        const answer = (d.answer || '').replace(/€/g, 'DT');
+        addChatMsg(answer, 'bot');
+    } catch {
+        addChatMsg("Je n'ai pas pu interroger le serveur. Vérifiez votre connexion.", 'bot');
+    }
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+    loadKPIs();
+    // Refresh KPIs si les données n'existent pas encore
+    setTimeout(async () => {
+        if (!_cachedKpis['Solde_Net']) {
+            try {
+                await fetch('/api/analytics/kpi-refresh', { method: 'POST', headers: getAuthHeader() });
+                await loadKPIs();
+            } catch(e) {}
+        }
+    }, 1200);
+});
+</script>
+</body>
+</html>

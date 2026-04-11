@@ -1,0 +1,336 @@
+/* ===============================
+   RESET
+================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ===============================
+   VARIABLES
+================================ */
+:root {
+    --primary: #127389;
+    --primary-dark: #0e6f84;
+    --bg-light: #F8FAFC;
+    --text-dark: #1E293B;
+    --text-light: #64748B;
+    --border: #93989e;
+    --card-b:#9a9a9a;
+    --success: #15803D;
+    --danger: #DC2626;
+}
+
+/* ===============================
+   BODY
+================================ */
+body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+/* ===============================
+   BACKGROUND IMAGE (pages auth)
+================================ */
+body.page-auth {
+    position: relative;
+    background: url("3079839.jpg") no-repeat center center;
+    background-size: cover;
+    display: flex;
+}
+
+body.page-auth::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+    z-index: 0;
+}
+
+/* ===============================
+   CONTAINER - PANNEAU GAUCHE
+================================ */
+.login-wrapper,
+.container {
+    position: relative;
+    z-index: 1;
+    width: 35%;
+    max-width: 500px;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 60px 60px 40px;
+    padding-left: 50px;
+    margin-left: 50px;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* ===============================
+   CARD - CONTENU DU FORMULAIRE
+================================ */
+.card {
+    background: #c8c7c7;
+    padding: 40px 35px;
+    border-radius: 16px;
+    box-shadow: 20px 20px 20px 20px rgba(1, 1, 1, 0.15);
+    border: 1px solid rgba(156, 156, 156, 0.8);
+    width: 100%;
+    text-align: left;
+}
+
+/* ===============================
+   TITRES
+================================ */
+.card-title {
+    font-size: 30px;
+    margin-bottom: 32px;
+    color: var(--text-dark);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+
+/* ===============================
+   FORMULAIRE
+================================ */
+.form-group {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-dark);
+    text-align: center;
+}
+
+.form-control {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 15px;
+    transition: all 0.2s;
+    background: #F9FAFB;
+    text-align: center;
+}
+
+.form-control::placeholder {
+    color: #9CA3AF;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    background: white;
+}
+
+/* ===============================
+   BOUTONS
+================================ */
+.btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: var(--primary);
+    border: none;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 12px;
+    text-align: center;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* ===============================
+   MESSAGES
+================================ */
+.message {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: left;
+}
+
+.message.text-info {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.message.text-success {
+    background: rgba(21, 128, 61, 0.1);
+    color: var(--success);
+    border: 1px solid rgba(21, 128, 61, 0.2);
+}
+
+.message.text-danger {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+/* ===============================
+   LOADING SPINNER
+================================ */
+.loading {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===============================
+   DIVIDER
+================================ */
+.divider {
+    text-align: center;
+    margin: 28px 0;
+    color: var(--text-light);
+    font-size: 14px;
+}
+
+.divider a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.divider a:hover {
+    text-decoration: underline;
+}
+
+/* ===============================
+   SOCIAL LOGIN
+================================ */
+.social-login {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+}
+
+.btn-google,
+.btn-facebook {
+    display: block;
+    text-align: center;
+    padding: 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s;
+    font-size: 15px;
+}
+
+.btn-google {
+    border: 1px solid var(--border);
+    color: #444;
+    background: rgb(218, 184, 184);
+    color: rgb(95, 18, 18);
+}
+
+.btn-google:hover {
+    background: #F1F5F9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.btn-facebook {
+    margin-top: 12px;
+    background: #1877F2;
+    color: white;
+    border: none;
+}
+
+.btn-facebook:hover {
+    background: #0F5ED7;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(24, 119, 242, 0.3);
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+@media (max-width: 1200px) {
+    .login-wrapper,
+    .container {
+        width: 40%;
+    }
+}
+
+@media (max-width: 900px) {
+    .login-wrapper,
+    .container {
+        width: 50%;
+        padding: 80px 50px 50px 50px;
+        margin-left: 0;
+        padding-left: 40px;
+    }
+}
+
+@media (max-width: 768px) {
+    body.page-auth {
+        justify-content: center;
+    }
+
+    .login-wrapper,
+    .container {
+        width: 100%;
+        max-width: 100%;
+        min-height: auto;
+        padding: 40px 32px;
+        margin-left: 0;
+        padding-left: 32px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card-title {
+        font-size: 28px;
+        margin-bottom: 28px;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-wrapper,
+    .container {
+        padding: 32px 24px;
+    }
+
+    .card-title {
+        font-size: 24px;
+    }
+}

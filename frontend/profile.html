@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Profil - BusinessApp</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="css/page-bg.css" rel="stylesheet">
+    <link href="css/topbar-shell.css" rel="stylesheet">
+    <link href="css/app-ux.css" rel="stylesheet">
+    <link href="css/charts-global-theme.css" rel="stylesheet">
+    <style>
+        .profile-wrap { max-width: 680px; margin: 40px auto; padding: 0 16px 60px; }
+
+        .profile-header {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg, 16px);
+            padding: 36px 32px 28px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 20px;
+        }
+        .profile-avatar-big {
+            width: 88px; height: 88px; border-radius: 50%;
+            background: var(--primary); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.2rem; font-weight: 800;
+            margin: 0 auto 16px;
+            border: 4px solid var(--bg-white);
+            box-shadow: var(--shadow-md);
+        }
+        .profile-name  { font-size: 1.25rem; font-weight: 800; margin-bottom: 4px; }
+        .profile-email { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 14px; }
+        .badge-role {
+            display: inline-block; font-size: 0.75rem; font-weight: 700;
+            padding: 3px 12px; border-radius: 20px;
+            background: rgba(var(--primary-rgb, 99,102,241),.12);
+            color: var(--primary); text-transform: uppercase; letter-spacing: .04em;
+        }
+
+        .profile-tabs {
+            display: flex; gap: 6px;
+            background: var(--bg-white);
+            border-radius: var(--radius-lg, 16px);
+            padding: 6px; box-shadow: var(--shadow-sm); margin-bottom: 20px;
+        }
+        .ptab {
+            flex: 1; padding: 9px 14px; border: none; background: transparent;
+            border-radius: 10px; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+            color: var(--text-muted); transition: all .18s;
+        }
+        .ptab:hover  { background: var(--bg-soft); color: var(--text-dark); }
+        .ptab.active { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(99,102,241,.25); }
+
+        .pcard {
+            background: var(--bg-white); border-radius: var(--radius-lg, 16px);
+            padding: 28px 28px 24px; box-shadow: var(--shadow-sm); margin-bottom: 16px;
+        }
+        .pcard-title {
+            font-size: 0.75rem; font-weight: 700; letter-spacing: .07em;
+            text-transform: uppercase; color: var(--text-muted);
+            margin-bottom: 20px; padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .form-label { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+        .form-control { border-radius: 10px; font-size: 0.92rem; padding: 10px 14px; border: 1.5px solid var(--border); background: var(--bg-soft); color: var(--text-dark); transition: border-color .15s, box-shadow .15s; }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,.15); outline: none; }
+
+        .pending-banner {
+            display: flex; align-items: flex-start; gap: 12px;
+            background: #fff8ec; border: 1.5px solid #f5c050;
+            border-radius: 12px; padding: 14px 16px;
+            margin-bottom: 16px; font-size: 0.87rem; color: #8a6400;
+        }
+        .pending-banner .pi { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+        .pending-banner strong { color: #6b4d00; }
+        .cancel-link { font-size: 0.8rem; text-decoration: underline; cursor: pointer; margin-top: 5px; display: inline-block; opacity: .75; }
+        .cancel-link:hover { opacity: 1; }
+
+        .strength-wrap { margin-top: 8px; }
+        .strength-bar  { height: 4px; border-radius: 2px; background: var(--border-subtle); overflow: hidden; }
+        .strength-fill { height: 100%; border-radius: 2px; width: 0; transition: width .3s, background .3s; }
+        .strength-label { font-size: 0.75rem; margin-top: 4px; color: var(--text-muted); }
+
+        .danger-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 0; border-bottom: 1px solid var(--border-subtle);
+        }
+        .danger-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .danger-row .dinfo p:first-child { font-size: 0.92rem; font-weight: 600; margin-bottom: 2px; }
+        .danger-row .dinfo p:last-child  { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
+
+        .info-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 0; font-size: 0.88rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-row .ilabel { color: var(--text-muted); font-size: 0.82rem; }
+        .inline-alert { font-size: 0.83rem; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; display: none; }
+        .inline-alert.success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .inline-alert.danger  { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+        #toast {
+            position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--primary); color: #fff;
+            padding: 11px 24px; border-radius: 40px; font-size: 0.88rem; font-weight: 600;
+            box-shadow: 0 4px 20px rgba(0,0,0,.15);
+            opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none;
+            white-space: nowrap; z-index: 9999;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1050; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-box { background: var(--bg-white); border-radius: 18px; padding: 28px; max-width: 440px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+        .modal-box h5 { font-size: 1rem; font-weight: 800; margin-bottom: 10px; }
+        .modal-box p  { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+
+        .email-preview { background: var(--bg-soft, #f8f8fc); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; font-size: 0.82rem; border: 1px solid var(--border-color, rgba(0,0,0,.1)); }
+        .email-preview .emeta { color: var(--text-muted); margin-bottom: 10px; line-height: 1.9; }
+        .email-preview .ebody { background: var(--bg-white); border-radius: 10px; border: 1px solid var(--border-color, rgba(0,0,0,.08)); padding: 14px; line-height: 1.7; }
+        .email-confirm-btn { display: inline-block; margin-top: 12px; padding: 9px 20px; background: var(--primary); color: #fff; border-radius: 8px; font-size: 0.83rem; font-weight: 700; cursor: pointer; border: none; font-family: inherit; }
+        .email-confirm-btn:hover { opacity: .88; }
+
+        .ppanel { display: none; }
+        .ppanel.active { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="page-bg"><div class="bg-img"></div><div class="bg-veil"></div><div class="bg-grid"></div></div>
+
+<nav class="topbar">
+    <a class="brand" href="dash.html"><span class="brand-dot"></span>Finova</a>
+    <div class="tnav nav-left">
+        <a href="dash.html">Import de données</a>
+        <a href="charts.html">Analyse</a>        <a href="assistance.html">Assistance</a>    </div>
+    <div class="tnav nav-right">
+        <a href="profile.html" class="active">Profil</a>
+        <a href="contact.html">Contact</a>
+        <a href="admin.html" id="navAdminItem" style="display:none;">Admin</a>
+    </div>
+    <div class="tr2">
+        <button class="theme-toggle" id="themeToggle" type="button">
+            <span id="themeIcon"><i class="bi bi-moon-stars-fill"></i></span>
+            <span id="themeLabel">Sombre</span>
+        </button>
+            <div class="upill" id="userPill">
+                <div class="uav" id="userAvatar">U</div>
+                <span id="navUser">Chargement…</span>
+                <div class="udrop" id="userMenu">
+                    <div class="udrop-header">
+                        <div class="uav-lg" id="menuUserAvatarLg">U</div>
+                        <div class="udrop-name" id="menuUserName">Molk H</div>
+                        <div class="udrop-email" id="menuUserEmail">molk@example.com</div>
+                    </div>
+                    <div class="udrop-actions">
+                        <a href="profile.html">
+                            <i class="bi bi-person-circle" style="font-size:1.1rem"></i> Gérer votre compte
+                        </a>
+                    </div>
+                    <div class="udrop-footer">
+                        <button id="logoutNav" class="lo-btn">Se déconnecter</button>
+                    </div>
+                </div>
+            </div>
+    </div>
+</nav>
+
+<div class="container anim">
+<div class="profile-wrap">
+
+    <!-- Banner mot de passe en attente uniquement -->
+    <div id="banner-password" class="pending-banner" style="display:none"></div>
+
+    <!-- Header -->
+    <div class="profile-header">
+        <div class="profile-avatar-big" id="profileAvatarBig">U</div>
+        <div class="profile-name"  id="profileName">Prénom Nom</div>
+        <div class="profile-email" id="profileEmail">email@exemple.com</div>
+        <span class="badge-role"   id="profileRole">user</span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="profile-tabs">
+        <button class="ptab active" onclick="switchTab('infos',this)">Informations</button>
+        <button class="ptab"        onclick="switchTab('password',this)">Mot de passe</button>
+        <button class="ptab"        onclick="switchTab('danger',this)">Compte</button>
+    </div>
+
+    <!-- Panel Informations -->
+    <div id="ppanel-infos" class="ppanel active">
+        <div class="pcard">
+            <div class="pcard-title">Informations personnelles</div>
+            <div id="alert-infos" class="inline-alert"></div>
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label class="form-label">Prénom</label>
+                    <input type="text" class="form-control" id="newFirstname">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-control" id="newLastname">
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" id="newEmail">
+            </div>
+            <button class="btn btn-primary w-100 py-3 fw-700" onclick="saveProfile()">
+                Enregistrer les modifications
+            </button>
+        </div>
+        <div class="pcard">
+            <div class="pcard-title">Informations du compte</div>
+            <div class="info-row"><span class="ilabel">Membre depuis</span><span id="infoCreatedAt">—</span></div>
+            <div class="info-row"><span class="ilabel">Rôle</span><span id="infoRole">—</span></div>
+            <!-- login_type supprimé de la BDD — valeur fixe "Email" -->
+            <div class="info-row"><span class="ilabel">Type de connexion</span><span>Email</span></div>
+        </div>
+    </div>
+
+    <!-- Panel Mot de passe -->
+    <div id="ppanel-password" class="ppanel">
+        <div class="pcard">
+            <div class="pcard-title">Changer le mot de passe</div>
+            <div id="alert-password" class="inline-alert"></div>
+            <div class="mb-3">
+                <label class="form-label">Mot de passe actuel</label>
+                <input type="password" class="form-control" id="pwdCurrent" placeholder="••••••••">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Nouveau mot de passe</label>
+                <input type="password" class="form-control" id="pwdNew" placeholder="••••••••" oninput="checkStrength(this.value)">
+                <div class="strength-wrap">
+                    <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+                    <div class="strength-label" id="strengthLabel"></div>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Confirmer le nouveau mot de passe</label>
+                <input type="password" class="form-control" id="pwdConfirm" placeholder="••••••••">
+            </div>
+            <button class="btn btn-primary w-100 py-3 fw-700" id="btnSavePwd" onclick="requestPasswordChange()">
+                Mettre à jour le mot de passe
+            </button>
+        </div>
+        <div class="pcard" style="font-size:.84rem; color:var(--text-muted); line-height:1.7">
+            <strong style="color:var(--text); display:block; margin-bottom:6px">Conseils de sécurité</strong>
+            Utilisez au moins 8 caractères en mélangeant majuscules, chiffres et symboles. Évitez de réutiliser un mot de passe existant.
+        </div>
+    </div>
+
+    <!-- Panel Compte -->
+    <div id="ppanel-danger" class="ppanel">
+        <div class="pcard">
+            <div class="pcard-title">Zone de danger</div>
+            <div class="danger-row">
+                <div class="dinfo">
+                    <p>Désactiver le compte</p>
+                    <p>Votre compte sera suspendu temporairement. Vous pourrez le réactiver en vous reconnectant.</p>
+                </div>
+                <button class="btn btn-outline-secondary btn-sm ms-3 fw-600" onclick="openConfirmModal('deactivate')">Désactiver</button>
+            </div>
+            <div class="danger-row">
+                <div class="dinfo">
+                    <p style="color:#dc3545">Supprimer le compte</p>
+                    <p>Action irréversible. Toutes vos données seront définitivement effacées.</p>
+                </div>
+                <button class="btn btn-outline-danger btn-sm ms-3 fw-600" onclick="openConfirmModal('delete')">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Modal email — confirmation mot de passe uniquement -->
+<div class="modal-overlay" id="modalEmail">
+    <div class="modal-box">
+        <h5 id="modalEmailTitle">Vérifiez votre boîte mail</h5>
+        <p  id="modalEmailIntro"></p>
+        <div class="email-preview">
+            <div class="emeta" id="modalMeta"></div>
+            <div class="ebody" id="modalBody"></div>
+        </div>
+        <p style="font-size:.76rem; color:var(--text-muted); margin-bottom:14px">
+            Simulation — en production l'utilisateur clique sur le lien reçu par email.
+        </p>
+        <div class="d-flex gap-2 justify-content-end">
+            <button class="btn btn-outline-secondary btn-sm" onclick="closeEmailModal()">Fermer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal confirm / delete -->
+<div class="modal-overlay" id="modalConfirm">
+    <div class="modal-box">
+        <h5 id="modalConfirmTitle">Confirmer</h5>
+        <p  id="modalConfirmBody"></p>
+        <div id="modalConfirmInputWrap" style="display:none; margin-bottom:16px">
+            <label class="form-label">Tapez votre email pour confirmer</label>
+            <input type="text" class="form-control" id="modalConfirmInput">
+        </div>
+        <div class="d-flex gap-2 justify-content-end">
+            <button class="btn btn-outline-secondary btn-sm" onclick="closeConfirmModal()">Annuler</button>
+            <button class="btn btn-danger btn-sm fw-700" onclick="executeConfirm()">Confirmer</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/ui-core.js"></script>
+<script src="js/theme-manager.js"></script>
+<script>
+/* ── State ──────────────────────────────────────────────────────── */
+let curr            = null;
+let pendingPwdToken = null;
+let confirmAction   = null;
+
+/* ── Init ───────────────────────────────────────────────────────── */
+(async function init() {
+    curr = window.UICore.bootstrapAuthenticatedPage({
+        requireAuth: true,
+        refreshProfile: true
+    });
+    if (!curr) return;
+    try {
+        const res  = await fetch(`/api/profile/${curr.id}`, { headers: { 'Authorization': `Bearer ${curr.id}` } });
+        const data = await res.json();
+        if (res.ok) populateProfile(data);
+    } catch(e) { populateProfile(curr); }
+})();
+
+function populateProfile(u) {
+    const fullName = `${u.firstname || ''} ${u.lastname || ''}`.trim() || u.username || u.email;
+    document.getElementById('profileName').textContent      = fullName;
+    document.getElementById('profileEmail').textContent     = u.email;
+    document.getElementById('profileAvatarBig').textContent = (u.firstname || u.username || '?')[0].toUpperCase();
+    document.getElementById('profileRole').textContent      = u.role      || 'user';
+    document.getElementById('newFirstname').value           = u.firstname || '';
+    document.getElementById('newLastname').value            = u.lastname  || '';
+    document.getElementById('newEmail').value               = u.email     || '';
+    document.getElementById('infoCreatedAt').textContent    = u.created_at || '—';
+    document.getElementById('infoRole').textContent         = u.role      || 'user';
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────── */
+function switchTab(id, el) {
+    document.querySelectorAll('.ptab').forEach(t  => t.classList.remove('active'));
+    document.querySelectorAll('.ppanel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('ppanel-' + id).classList.add('active');
+}
+
+/* ── Profil — sauvegarde directe ────────────────────────────────── */
+async function saveProfile() {
+    const f  = document.getElementById('newFirstname').value.trim();
+    const l  = document.getElementById('newLastname').value.trim();
+    const em = document.getElementById('newEmail').value.trim();
+    if (!f || !l || !em)   { showAlert('alert-infos', 'danger', 'Tous les champs sont requis.'); return; }
+    if (!em.includes('@')) { showAlert('alert-infos', 'danger', 'Email invalide.'); return; }
+
+    try {
+        const res  = await fetch(`/api/profile/${curr.id}`, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${curr.id}` },
+            body:    JSON.stringify({ firstname: f, lastname: l, email: em })
+        });
+        const data = await res.json();
+        if (!res.ok) { showAlert('alert-infos', 'danger', data.error || 'Erreur serveur'); return; }
+
+        const updated = { ...curr, firstname: f, lastname: l, email: em };
+        localStorage.setItem('user', JSON.stringify(updated));
+        curr = updated;
+        populateProfile(data.user || updated);
+        showToast('Profil mis à jour', 'bi-check-circle-fill');
+    } catch(e) {
+        showAlert('alert-infos', 'danger', 'Impossible de joindre le serveur.');
+    }
+}
+
+/* ── Mot de passe — confirmation par email ──────────────────────── */
+async function requestPasswordChange() {
+    const c  = document.getElementById('pwdCurrent').value;
+    const n  = document.getElementById('pwdNew').value;
+    const cf = document.getElementById('pwdConfirm').value;
+    if (!c || !n || !cf) { showAlert('alert-password', 'danger', 'Tous les champs sont requis.'); return; }
+    if (n !== cf)         { showAlert('alert-password', 'danger', 'Les mots de passe ne correspondent pas.'); return; }
+    if (n.length < 8)     { showAlert('alert-password', 'danger', 'Minimum 8 caractères.'); return; }
+
+    try {
+        const res  = await fetch('/api/profile/pending', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${curr.id}` },
+            body:    JSON.stringify({ type: 'password', user_id: curr.id, current_password: c, new_password: n })
+        });
+        const data = await res.json();
+        if (!res.ok) { showAlert('alert-password', 'danger', data.error || 'Erreur serveur'); return; }
+        pendingPwdToken = data.token;
+    } catch(e) {
+        pendingPwdToken = 'sim_' + Date.now();
+    }
+
+    const banner = document.getElementById('banner-password');
+    banner.innerHTML = `
+        <span class="pi"><i class="bi bi-arrow-repeat"></i></span>
+        <div>
+            <strong>Changement de mot de passe en attente</strong> — Un lien de confirmation a été envoyé à <strong>${curr.email}</strong>.<br>
+            Votre mot de passe actuel reste actif jusqu'à confirmation.
+            <br><span class="cancel-link" onclick="cancelPendingPassword()">Annuler cette demande</span>
+        </div>`;
+    banner.style.display = 'flex';
+    document.getElementById('btnSavePwd').disabled = true;
+
+    const now  = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const name = curr.firstname || curr.username || 'utilisateur';
+    openEmailModal({
+        to:      curr.email,
+        subject: 'Confirmez le changement de mot de passe',
+        body:    `Bonjour <strong>${name}</strong>,<br><br>
+Une demande de changement de mot de passe a été effectuée aujourd'hui à <strong>${now}</strong>.<br><br>
+Votre mot de passe actuel reste actif tant que vous n'avez pas confirmé.<br><br>
+<button class="email-confirm-btn" onclick="applyPasswordChange()">Confirmer le nouveau mot de passe <i class="bi bi-arrow-right ms-1"></i></button>
+<br><br><span style="font-size:.76rem;color:#9ca3af">Si ce n'est pas vous, ignorez cet email — rien ne sera modifié.</span>`
+    });
+}
+
+async function applyPasswordChange() {
+    closeEmailModal();
+    try {
+        const res  = await fetch(`/api/profile/${curr.id}/password`, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${curr.id}` },
+            body:    JSON.stringify({
+                current_password: document.getElementById('pwdCurrent').value,
+                new_password:     document.getElementById('pwdNew').value
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Erreur serveur', 'bi-x-circle-fill'); return; }
+    } catch(e) {}
+
+    cancelPendingPassword();
+    ['pwdCurrent','pwdNew','pwdConfirm'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('strengthFill').style.width = '0';
+    document.getElementById('strengthLabel').textContent = '';
+    showToast('Mot de passe mis à jour', 'bi-check-circle-fill');
+}
+
+function cancelPendingPassword() {
+    document.getElementById('banner-password').style.display = 'none';
+    document.getElementById('btnSavePwd').disabled = false;
+    if (pendingPwdToken) {
+        fetch('/api/profile/pending/cancel', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: pendingPwdToken })
+        }).catch(() => {});
+        pendingPwdToken = null;
+    }
+}
+
+/* ── Password strength ──────────────────────────────────────────── */
+function checkStrength(v) {
+    let s = 0;
+    if (v.length >= 8)          s++;
+    if (/[A-Z]/.test(v))        s++;
+    if (/[0-9]/.test(v))        s++;
+    if (/[^A-Za-z0-9]/.test(v)) s++;
+    const labels = ['','Faible','Moyen','Fort','Très fort'];
+    const colors = ['','#ef4444','#f59e0b','#10b981','#10b981'];
+    document.getElementById('strengthFill').style.width      = (s * 25) + '%';
+    document.getElementById('strengthFill').style.background = colors[s] || 'transparent';
+    document.getElementById('strengthLabel').textContent     = labels[s] || '';
+}
+
+/* ── Modal email ────────────────────────────────────────────────── */
+function openEmailModal({ to, subject, body }) {
+    document.getElementById('modalEmailTitle').textContent = 'Vérifiez votre boîte mail';
+    document.getElementById('modalEmailIntro').innerHTML   =
+        `Un email a été envoyé à <strong>${to}</strong>. Votre mot de passe ne changera qu'après confirmation.`;
+    document.getElementById('modalMeta').innerHTML =
+        `<strong>De :</strong> BusinessApp &lt;noreply@businessapp.io&gt;<br>
+         <strong>À :</strong> ${to}<br>
+         <strong>Objet :</strong> ${subject}`;
+    document.getElementById('modalBody').innerHTML = body;
+    document.getElementById('modalEmail').classList.add('open');
+}
+function closeEmailModal() {
+    document.getElementById('modalEmail').classList.remove('open');
+}
+
+/* ── Modal confirm / delete ─────────────────────────────────────── */
+function openConfirmModal(action) {
+    confirmAction = action;
+    if (action === 'delete') {
+        document.getElementById('modalConfirmTitle').textContent = 'Supprimer le compte';
+        document.getElementById('modalConfirmBody').textContent  = 'Cette action est irréversible. Toutes vos données seront définitivement supprimées. Tapez votre email pour confirmer.';
+        document.getElementById('modalConfirmInput').placeholder = curr.email;
+        document.getElementById('modalConfirmInputWrap').style.display = 'block';
+    } else {
+        document.getElementById('modalConfirmTitle').textContent = 'Désactiver le compte';
+        document.getElementById('modalConfirmBody').textContent  = 'Votre compte sera suspendu temporairement. Vous pourrez le réactiver en vous reconnectant.';
+        document.getElementById('modalConfirmInputWrap').style.display = 'none';
+    }
+    document.getElementById('modalConfirm').classList.add('open');
+}
+function closeConfirmModal() {
+    document.getElementById('modalConfirm').classList.remove('open');
+    document.getElementById('modalConfirmInput').value = '';
+    confirmAction = null;
+}
+async function executeConfirm() {
+    if (confirmAction === 'delete') {
+        const val = document.getElementById('modalConfirmInput').value.trim();
+        if (val !== curr.email) {
+            document.getElementById('modalConfirmInput').classList.add('is-invalid');
+            return;
+        }
+        try {
+            await fetch(`/api/profile/${curr.id}`, {
+                method: 'DELETE', headers: { 'Authorization': `Bearer ${curr.id}` }
+            });
+        } catch(e) {}
+        closeConfirmModal();
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+    } else {
+        closeConfirmModal();
+        showToast('Compte désactivé.', 'bi-info-circle-fill');
+    }
+}
+
+/* ── Helpers ────────────────────────────────────────────────────── */
+function showAlert(id, type, msg) {
+    const el = document.getElementById(id);
+    el.className = 'inline-alert ' + type;
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4500);
+}
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+}
+
+function showToast(msg, iconClass = 'bi-info-circle-fill') {
+    const t = document.getElementById('toast');
+    t.innerHTML = `<i class="bi ${iconClass} me-1"></i>${escapeHtml(msg)}`;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+flask
+authlib
+mysql-connector-python
+flask-cors
+werkzeug

@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - BusinessApp</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link href="css/page-bg.css" rel="stylesheet">
+    <link href="css/topbar-shell.css" rel="stylesheet">
+    <link href="css/app-ux.css" rel="stylesheet">
+    <link href="css/charts-global-theme.css" rel="stylesheet">
+
+    <style>
+        .upload-card {
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .upload-zone {
+            border: 2px dashed var(--primary, #1fb5b5);
+            border-radius: 16px;
+            padding: 32px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            background: var(--bg-soft);
+        }
+        .upload-zone:hover {
+            background: rgba(31,181,181,0.06);
+            border-color: var(--primary-dark, #137f86);
+        }
+        .upload-icon { font-size: 2.4rem; margin-bottom: 8px; }
+        .etl-launch-zone {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .etl-step {
+            font-size: 0.75rem;
+            font-weight: 600;
+            opacity: 0.4;
+            transition: opacity 0.3s, font-weight 0.3s;
+        }
+        .table-wrapper { overflow-x: auto; }
+        .table-scroll-wrap {
+            max-height: 600px;
+            overflow: auto;
+            border: 1px solid rgba(0,0,0,.08);
+            border-radius: 12px;
+        }
+        .sticky-head thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #fff;
+        }
+        [data-theme="dark"] .sticky-head thead th {
+            background: #1f232a;
+        }
+        .table-tools {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: var(--bg-soft);
+        }
+        .table-tools .form-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 4px;
+            color: var(--text-muted);
+        }
+        .table-tools .form-control,
+        .table-tools .form-select {
+            font-size: 0.82rem;
+        }
+        .table-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        [data-theme="dark"] .table-tools {
+            background: rgba(15, 26, 42, 0.9);
+            border-color: var(--border);
+        }
+    </style>
+
+    <script src="js/theme-manager.js"></script>
+    <script src="js/ui-core.js"></script>
+</head>
+<body>
+  <div class="page-bg">
+      <div class="bg-img"></div>
+      <div class="bg-veil"></div>
+      <div class="bg-grid"></div>
+  </div>
+
+  <div class="page-shell">
+    <nav class="topbar">
+        <a class="brand" href="dash.html"><span class="brand-dot"></span>Finova</a>
+
+        <div class="tnav nav-left">
+            <a href="dash.html" class="active">Import de données</a>
+            <a href="charts.html">Analyse</a>
+            <a href="assistance.html">Assistance</a>
+        </div>
+
+        <div class="tnav nav-right">
+            <a href="profile.html">Profil</a>
+            <a href="contact.html">Contact</a>
+            <a href="admin.html" id="navAdminItem" style="display:none;">Admin</a>
+        </div>
+
+        <div class="tr2">
+            <button class="theme-toggle" id="themeToggle" type="button">
+                <span id="themeIcon"><i class="bi bi-moon-stars-fill"></i></span>
+                <span id="themeLabel">Sombre</span>
+            </button>
+
+            <div class="upill" id="userPill">
+                <div class="uav" id="userAvatar">U</div>
+                <span id="navUser">Chargement…</span>
+
+                <div class="udrop" id="userMenu">
+                    <div class="udrop-header">
+                        <div class="uav-lg" id="menuUserAvatarLg">U</div>
+                        <div class="udrop-name" id="menuUserName">Utilisateur</div>
+                        <div class="udrop-email" id="menuUserEmail">email@example.com</div>
+                    </div>
+
+                    <div class="udrop-actions">
+                        <a href="profile.html">
+                            <i class="bi bi-person-circle" style="font-size:1.1rem"></i> Gérer votre compte
+                        </a>
+                    </div>
+
+                    <div class="udrop-footer">
+                        <button id="logoutNav" class="lo-btn">Se déconnecter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <aside id="histSidebar" class="hist-sidebar">
+        <button id="histToggle" class="hist-toggle-btn" type="button"><i class="bi bi-chevron-left"></i></button>
+
+        <div class="hist-user-header">
+            <div class="hist-user-row">
+                <div class="hist-user-avatar" id="histUserAvatar">U</div>
+                <div class="hist-user-info">
+                    <div class="hist-user-name" id="histUserName">Chargement…</div>
+                    <div class="hist-user-label">Historique des imports</div>
+                </div>
+            </div>
+            <div class="hist-section-title"><i class="bi bi-clipboard-data me-1"></i>Imports par utilisateur</div>
+        </div>
+
+        <div id="histList" class="hist-list">
+            <div class="hist-empty">Chargement de l'historique...</div>
+        </div>
+    </aside>
+
+    <div class="container" id="mainContainer">
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold">Import & Nettoyage</h1>
+            <p class="text-muted">Transformez vos données brutes en insights exploitables.</p>
+        </div>
+
+        <div class="card mb-4 p-4 upload-card">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-content">
+                    <div class="upload-icon"><i class="bi bi-cloud-upload-fill"></i></div>
+                    <div class="h5 fw-bold mb-1">Déposez votre fichier ici</div>
+                    <p class="text-muted small mb-2">CSV ou Excel uniquement (Max 10 MB)</p>
+                    <input type="file" id="csvFile" style="display:none" accept=".csv,.xlsx,.xls">
+                </div>
+            </div>
+
+            <div class="etl-launch-zone mt-4 align-items-center justify-content-between gap-3" id="etlLaunchZone" style="display:none">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="font-size: 2.5rem"><i class="bi bi-file-earmark-text-fill"></i></div>
+                    <div>
+                        <div class="h5 fw-bold mb-0" id="fileNameLabel">nom_du_fichier.csv</div>
+                        <div class="text-muted small" id="fileSizeLabel">0 KB</div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-danger" id="clearBtn" type="button">Annuler</button>
+                    <button class="btn btn-primary" id="launchEtlBtn" type="button">
+                        <span class="spinner-border spinner-border-sm me-2 d-none" id="etlLoader"></span>
+                        <i class="bi bi-gear-fill me-1"></i>Lancer le nettoyage
+                    </button>
+                </div>
+            </div>
+
+            <div class="etl-status-bar mt-3" id="etlStatusBar" style="display:none">
+                <div class="d-flex justify-content-between w-100">
+                    <span class="etl-step" id="step1">Lecture</span>
+                    <span class="etl-step" id="step2">Nettoyage</span>
+                    <span class="etl-step" id="step3">Normalisation</span>
+                    <span class="etl-step" id="step4">Enregistrement</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card bg-dark text-info p-3 mb-4 d-none" id="etlLogCard">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0 text-uppercase fw-bold" style="letter-spacing: 0.1em">Logs du Processus</h6>
+                <span class="badge bg-info text-dark">Console Python</span>
+            </div>
+            <pre id="etlLogBox" style="font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; max-height: 200px; overflow-y: auto; margin-bottom: 0;"></pre>
+        </div>
+
+        <div id="statsContainer" class="d-none">
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="small opacity-75">Lignes traitées</div>
+                        <div class="h2 fw-bold mb-0" id="rowCount">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="small opacity-75">Colonnes détectées</div>
+                        <div class="h2 fw-bold mb-0" id="colCount">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="small opacity-75">Taux correction</div>
+                        <div class="h2 fw-bold mb-0" id="fixRate">—</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="small opacity-75">Lignes changées</div>
+                        <div class="h2 fw-bold mb-0" id="changedRowsCount">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-3 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Comparaison avant / après ETL</h5>
+                    <div class="d-flex gap-2">
+                        <a href="/api/etl/download" class="btn btn-sm btn-outline-primary" id="exportBtn"><i class="bi bi-download me-1"></i>Télécharger CSV</a>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-funnel-fill me-1"></i>Exporter la vue filtrée
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><button class="dropdown-item" type="button" id="exportFilteredCsvBtn"><i class="bi bi-filetype-csv me-2"></i>Exporter en CSV</button></li>
+                                <li><button class="dropdown-item" type="button" id="exportFilteredExcelBtn"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Exporter en Excel</button></li>
+                                <li><button class="dropdown-item" type="button" id="exportFilteredJsonBtn"><i class="bi bi-filetype-json me-2"></i>Exporter en JSON</button></li>
+                            </ul>
+                        </div>
+                        <a href="charts.html" class="btn btn-sm btn-primary"><i class="bi bi-bar-chart-line-fill me-1"></i>Voir Analytics</a>
+                    </div>
+                </div>
+
+                <div class="table-tools mb-3" id="tableTools">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label" for="importSearchInput">Recherche globale</label>
+                            <input type="search" class="form-control" id="importSearchInput" placeholder="Rechercher dans les lignes affichées...">
+                        </div>
+                        <div class="col-lg-2 col-md-6">
+                            <label class="form-label" for="filterDept">Département</label>
+                            <select class="form-select" id="filterDept"><option value="">Tous</option></select>
+                        </div>
+                        <div class="col-lg-2 col-md-6">
+                            <label class="form-label" for="filterTransactionType">Type transaction</label>
+                            <select class="form-select" id="filterTransactionType"><option value="">Tous</option></select>
+                        </div>
+                        <div class="col-lg-2 col-md-6">
+                            <label class="form-label" for="filterExpenseType">Type dépense</label>
+                            <select class="form-select" id="filterExpenseType"><option value="">Tous</option></select>
+                        </div>
+                        <div class="col-lg-2 col-md-6">
+                            <label class="form-label" for="filterDateValue">Date / Période</label>
+                            <select class="form-select" id="filterDateValue"><option value="">Toutes</option></select>
+                        </div>
+                        <div class="col-lg-1 col-md-6 d-grid">
+                            <button class="btn btn-outline-secondary" id="resetTableFiltersBtn" type="button">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-meta mt-2">
+                        <span id="activeTableLabel"><i class="bi bi-table me-1"></i>Table active : Avant import</span>
+                        <span class="badge text-bg-secondary" id="visibleRowsBadge">0 / 0 lignes visibles</span>
+                    </div>
+                </div>
+
+                <ul class="nav nav-tabs mb-3" id="etlTabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="tabBeforeBtn" data-bs-toggle="tab" data-bs-target="#beforePane" type="button">Avant import</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tabAfterBtn" data-bs-toggle="tab" data-bs-target="#afterPane" type="button">Après nettoyage</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="beforePane">
+                        <div class="table-wrapper">
+                            <div id="beforeTableContent"></div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="afterPane">
+                        <div class="table-wrapper">
+                            <div id="afterTableContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="chatbot-launcher" id="chatLauncher" type="button">
+        <svg viewBox="0 0 24 24">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="white"/>
+        </svg>
+    </button>
+
+    <aside id="chatbotPanel" class="chatbot-panel panel-hidden">
+        <!-- Header -->
+        <div class="cp-header">
+            <div class="cp-header-info">
+                <div class="cp-avatar"><i class="bi bi-robot"></i></div>
+                <div>
+                    <div class="cp-title">BI Assistant</div>
+                    <div class="cp-subtitle">● En ligne · Analyse vos données</div>
+                </div>
+            </div>
+            <button class="btn-close btn-close-white" id="chatCloseBtn" type="button"></button>
+        </div>
+
+        <!-- Messages -->
+        <div class="cp-messages" id="chatMessages"></div>
+
+        <!-- Quick suggestion chips -->
+        <div class="cp-suggestions" id="chatSuggestions">
+            <button class="cp-chip" type="button"><i class="bi bi-cash-stack me-1"></i>Revenus totaux</button>
+            <button class="cp-chip" type="button"><i class="bi bi-graph-down-arrow me-1"></i>Dépenses</button>
+            <button class="cp-chip" type="button"><i class="bi bi-people-fill me-1"></i>Utilisateurs</button>
+        </div>
+
+        <!-- Input -->
+        <div class="cp-input-row">
+            <input type="text" id="chatInput" placeholder="Posez une question sur vos données…" autocomplete="off">
+            <button class="cp-send-btn" id="chatSendBtn" type="button" aria-label="Envoyer"><i class="bi bi-send-fill"></i></button>
+        </div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    const user = window.UICore?.bootstrapAuthenticatedPage?.({
+        requireAuth: true,
+        refreshProfile: true
+    }) || null;
+    if (!user) window.location.href = 'index.html';
+
+    let selectedFile = null;
+    let etlFilename = null;
+    let importedRows = [];
+    let cleanedRows = [];
+
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('csvFile');
+    const launchBtn = document.getElementById('launchEtlBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const etlLaunchZone = document.getElementById('etlLaunchZone');
+    const etlStatus = document.getElementById('etlStatusBar');
+    const logCard = document.getElementById('etlLogCard');
+    const logBox = document.getElementById('etlLogBox');
+    const statsContainer = document.getElementById('statsContainer');
+    const rowCount = document.getElementById('rowCount');
+    const colCount = document.getElementById('colCount');
+    const fixRate = document.getElementById('fixRate');
+    const changedRowsCount = document.getElementById('changedRowsCount');
+    const searchInput = document.getElementById('importSearchInput');
+    const filterDept = document.getElementById('filterDept');
+    const filterTransactionType = document.getElementById('filterTransactionType');
+    const filterExpenseType = document.getElementById('filterExpenseType');
+    const filterDateValue = document.getElementById('filterDateValue');
+    const resetTableFiltersBtn = document.getElementById('resetTableFiltersBtn');
+    const activeTableLabel = document.getElementById('activeTableLabel');
+    const visibleRowsBadge = document.getElementById('visibleRowsBadge');
+    const exportFilteredCsvBtn = document.getElementById('exportFilteredCsvBtn');
+    const exportFilteredExcelBtn = document.getElementById('exportFilteredExcelBtn');
+    const exportFilteredJsonBtn = document.getElementById('exportFilteredJsonBtn');
+
+    const filterAliases = {
+        department: ['departement', 'department', 'dept', 'departmentid', 'departementid'],
+        transactionType: ['type_transaction', 'transaction_type', 'typetransaction', 'typeoperation'],
+        expenseType: ['type_depense', 'expense_type', 'typedepense', 'depense_type'],
+        date: ['date', 'date_transaction', 'date_trans', 'transaction_date', 'year_month', 'periode', 'period']
+    };
+
+    const tableFilterState = {
+        activePane: 'before',
+        search: '',
+        department: '',
+        transactionType: '',
+        expenseType: '',
+        dateValue: '',
+        visibleRows: []
+    };
+
+    function showToast(message, type = 'info') {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} position-fixed bottom-0 end-0 m-3 shadow`;
+        alert.style.zIndex = '9999';
+        alert.style.maxWidth = '420px';
+        alert.textContent = message;
+        document.body.appendChild(alert);
+        setTimeout(() => alert.remove(), 3000);
+    }
+
+    function resetSteps() {
+        ['step1', 'step2', 'step3', 'step4'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.opacity = '0.4';
+            el.style.fontWeight = '400';
+        });
+    }
+
+    function activateStep(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.opacity = '1';
+        el.style.fontWeight = '700';
+    }
+
+    function resetPageState() {
+        selectedFile = null;
+        etlFilename = null;
+        importedRows = [];
+        cleanedRows = [];
+        fileInput.value = '';
+        etlLaunchZone.style.display = 'none';
+        etlStatus.style.display = 'none';
+        logCard.classList.add('d-none');
+        logBox.textContent = '';
+        statsContainer.classList.add('d-none');
+        document.getElementById('beforeTableContent').innerHTML = '';
+        document.getElementById('afterTableContent').innerHTML = '';
+        rowCount.textContent = '0';
+        colCount.textContent = '0';
+        fixRate.textContent = '—';
+        changedRowsCount.textContent = '0';
+        resetTableFilters();
+        resetSteps();
+    }
+
+    function normalizeCell(value) {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'object') {
+            try {
+                return JSON.stringify(value);
+            } catch (_) {
+                return String(value);
+            }
+        }
+        return String(value);
+    }
+    function escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = normalizeCell(value);
+        return div.innerHTML;
+    }
+    function normalizeKey(value) {
+        return normalizeCell(value)
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]/g, '');
+    }
+    function monthBucket(value) {
+        const raw = normalizeCell(value).trim();
+        if (!raw) return '';
+        const isoMatch = raw.match(/(\d{4})[-/](\d{1,2})/);
+        if (isoMatch) return `${isoMatch[1]}-${String(isoMatch[2]).padStart(2, '0')}`;
+        const dmyMatch = raw.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+        if (dmyMatch) return `${dmyMatch[3]}-${String(dmyMatch[2]).padStart(2, '0')}`;
+        return raw.length >= 7 ? raw.slice(0, 7) : raw;
+    }
+    function collectHeaders(rows) {
+        const headers = [];
+        const seen = new Set();
+        (rows || []).forEach((row) => {
+            Object.keys(row || {}).forEach((key) => {
+                if (seen.has(key)) return;
+                seen.add(key);
+                headers.push(key);
+            });
+        });
+        return headers;
+    }
+    function buildColumnMap(rows) {
+        const columnMap = {};
+        (rows || []).forEach((row) => {
+            Object.keys(row || {}).forEach((key) => {
+                const normalized = normalizeKey(key);
+                if (!normalized || columnMap[normalized]) return;
+                columnMap[normalized] = key;
+            });
+        });
+        return columnMap;
+    }
+    function findColumnKey(rows, aliases) {
+        const map = buildColumnMap(rows);
+        for (const alias of aliases) {
+            const match = map[normalizeKey(alias)];
+            if (match) return match;
+        }
+        return null;
+    }
+    function currentRows() {
+        return tableFilterState.activePane === 'after' ? cleanedRows : importedRows;
+    }
+    function currentTargetId() {
+        return tableFilterState.activePane === 'after' ? 'afterTableContent' : 'beforeTableContent';
+    }
+    function setSelectOptions(selectEl, values, placeholder, selected) {
+        if (!selectEl) return;
+        const prior = selected || '';
+        selectEl.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = placeholder;
+        selectEl.appendChild(defaultOption);
+        values.forEach((value) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            selectEl.appendChild(option);
+        });
+        if (prior && values.includes(prior)) {
+            selectEl.value = prior;
+        } else {
+            selectEl.value = '';
+        }
+    }
+    function uniqueColumnValues(rows, key, transformFn) {
+        if (!key) return [];
+        const set = new Set();
+        rows.forEach((row) => {
+            const value = transformFn ? transformFn(row[key]) : normalizeCell(row[key]).trim();
+            if (value) set.add(value);
+        });
+        return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
+    }
+    function syncFilterControls() {
+        const rows = currentRows();
+        const departmentKey = findColumnKey(rows, filterAliases.department);
+        const transactionTypeKey = findColumnKey(rows, filterAliases.transactionType);
+        const expenseTypeKey = findColumnKey(rows, filterAliases.expenseType);
+        const dateKey = findColumnKey(rows, filterAliases.date);
+        const deptValues = uniqueColumnValues(rows, departmentKey);
+        const transactionValues = uniqueColumnValues(rows, transactionTypeKey);
+        const expenseValues = uniqueColumnValues(rows, expenseTypeKey);
+        const dateValues = uniqueColumnValues(rows, dateKey, monthBucket);
+        setSelectOptions(filterDept, deptValues, 'Tous', tableFilterState.department);
+        setSelectOptions(filterTransactionType, transactionValues, 'Tous', tableFilterState.transactionType);
+        setSelectOptions(filterExpenseType, expenseValues, 'Tous', tableFilterState.expenseType);
+        setSelectOptions(filterDateValue, dateValues, 'Toutes', tableFilterState.dateValue);
+
+        tableFilterState.department = filterDept.value || '';
+        tableFilterState.transactionType = filterTransactionType.value || '';
+        tableFilterState.expenseType = filterExpenseType.value || '';
+        tableFilterState.dateValue = filterDateValue.value || '';
+
+        filterDept.disabled = !departmentKey;
+        filterTransactionType.disabled = !transactionTypeKey;
+        filterExpenseType.disabled = !expenseTypeKey;
+        filterDateValue.disabled = !dateKey;
+        if (filterDept.disabled) tableFilterState.department = '';
+        if (filterTransactionType.disabled) tableFilterState.transactionType = '';
+        if (filterExpenseType.disabled) tableFilterState.expenseType = '';
+        if (filterDateValue.disabled) tableFilterState.dateValue = '';
+    }
+    function updateTableMeta(visibleCount, totalCount) {
+        if (activeTableLabel) {
+            activeTableLabel.innerHTML = tableFilterState.activePane === 'after'
+                ? '<i class="bi bi-table me-1"></i>Table active : Après nettoyage'
+                : '<i class="bi bi-table me-1"></i>Table active : Avant import';
+        }
+        if (visibleRowsBadge) {
+            visibleRowsBadge.textContent = `${visibleCount} / ${totalCount} lignes visibles`;
+        }
+    }
+    function filterRows(rows) {
+        const workingRows = rows || [];
+        const search = tableFilterState.search.trim().toLowerCase();
+        const departmentKey = findColumnKey(workingRows, filterAliases.department);
+        const transactionTypeKey = findColumnKey(workingRows, filterAliases.transactionType);
+        const expenseTypeKey = findColumnKey(workingRows, filterAliases.expenseType);
+        const dateKey = findColumnKey(workingRows, filterAliases.date);
+        return workingRows.filter((row) => {
+            if (search) {
+                const haystack = Object.values(row || {}).map((value) => normalizeCell(value).toLowerCase()).join(' ');
+                if (!haystack.includes(search)) return false;
+            }
+            if (tableFilterState.department && departmentKey) {
+                if (normalizeCell(row[departmentKey]).trim() !== tableFilterState.department) return false;
+            }
+            if (tableFilterState.transactionType && transactionTypeKey) {
+                if (normalizeCell(row[transactionTypeKey]).trim() !== tableFilterState.transactionType) return false;
+            }
+            if (tableFilterState.expenseType && expenseTypeKey) {
+                if (normalizeCell(row[expenseTypeKey]).trim() !== tableFilterState.expenseType) return false;
+            }
+            if (tableFilterState.dateValue && dateKey) {
+                if (monthBucket(row[dateKey]) !== tableFilterState.dateValue) return false;
+            }
+            return true;
+        });
+    }
+    function renderTable(rows, targetId) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        if (!Array.isArray(rows) || rows.length === 0) {
+            target.innerHTML = '<div class="text-muted p-3">Aucune donnée à afficher.</div>';
+            return;
+        }
+        const headers = collectHeaders(rows);
+        let html = '<div class="table-scroll-wrap"><table class="table table-sm table-hover align-middle sticky-head" style="font-size:0.8rem">';
+        html += '<thead><tr>';
+        headers.forEach((header) => {
+            html += `<th>${escapeHtml(header)}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        rows.forEach((row) => {
+            html += '<tr>';
+            headers.forEach((header) => {
+                html += `<td>${escapeHtml(row[header])}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        target.innerHTML = html;
+    }
+    function applyActiveTableFilters() {
+        const rows = currentRows();
+        syncFilterControls();
+        const filtered = filterRows(rows);
+        tableFilterState.visibleRows = filtered;
+        renderTable(filtered, currentTargetId());
+        updateTableMeta(filtered.length, rows.length);
+    }
+    function resetTableFilters() {
+        tableFilterState.search = '';
+        tableFilterState.department = '';
+        tableFilterState.transactionType = '';
+        tableFilterState.expenseType = '';
+        tableFilterState.dateValue = '';
+        tableFilterState.visibleRows = [];
+        if (searchInput) searchInput.value = '';
+        if (filterDept) filterDept.value = '';
+        if (filterTransactionType) filterTransactionType.value = '';
+        if (filterExpenseType) filterExpenseType.value = '';
+        if (filterDateValue) filterDateValue.value = '';
+        syncFilterControls();
+        applyActiveTableFilters();
+    }
+    function hydrateSidebarUser(currentUser) {
+        if (!currentUser) {
+            document.getElementById('histUserName').textContent = 'Invité';
+            document.getElementById('histList').innerHTML = '<div class="hist-empty">Connectez-vous pour voir l\'historique.</div>';
+            return;
+        }
+        const displayName = window.UICore?.getDisplayName?.(currentUser) || currentUser.username || currentUser.email || 'Utilisateur';
+        const initials = window.UICore?.getInitials?.(currentUser) || displayName[0].toUpperCase();
+        document.getElementById('histUserAvatar').textContent = initials;
+        document.getElementById('histUserName').textContent = displayName;
+    }
+async function fetchHistory() {
+    const list = document.getElementById('histList');
+
+    if (!user || !user.id) {
+        list.innerHTML = '<div class="hist-empty">Connectez-vous pour voir l’historique.</div>';
+        return;
+    }
+
+    list.innerHTML = '<div class="hist-empty">Chargement de l’historique...</div>';
+
+    try {
+        const res = await fetch('/api/etl/history', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${user.id}`
+            }
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error || 'Impossible de charger l’historique');
+        }
+
+        const groups = data.groups || [];
+
+        if (!groups.length) {
+            list.innerHTML = '<div class="hist-empty">Aucun import.</div>';
+            return;
+        }
+
+        list.innerHTML = groups.map(group => `
+            <div class="mb-3 p-2 border rounded">
+                <div class="fw-bold mb-2"><i class="bi bi-person-circle me-1"></i>${normalizeCell(group.user_name)}</div>
+                ${group.items.map(item => `
+                    <div class="hist-item">
+                        <div class="hi-name"><i class="bi bi-file-earmark-text me-1"></i>${normalizeCell(item.nom_fichier)}</div>
+                        <div class="small opacity-75">
+                            ${normalizeCell(item.date_import_label)}
+                            · ${normalizeCell(item.nb_lignes)} lignes
+                            · ${normalizeCell(item.nb_erreurs)} erreurs
+                            ${item.departement ? '· ' + normalizeCell(item.departement) : ''}
+                        </div>
+                        <span class="hist-badge ${item.statut === 'echec' ? 'danger' : 'success'}">
+                            ${normalizeCell(item.statut)}
+                        </span>
+                    </div>
+                `).join('')}
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error(error);
+        list.innerHTML = '<div class="hist-empty text-danger">Erreur chargement historique.</div>';
+    }
+}
+
+    function downloadBlob(content, mimeType, fileName) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function exportVisibleRowsAsCsv() {
+        const rows = tableFilterState.visibleRows || [];
+        if (!rows.length) {
+            showToast('Aucune ligne visible à exporter.', 'warning');
+            return;
+        }
+        const headers = collectHeaders(rows);
+        const csvLines = rows.map((row) =>
+            headers
+                .map((header) => `"${normalizeCell(row[header]).replace(/"/g, '""')}"`)
+                .join(',')
+        );
+        const csv = [headers.join(','), ...csvLines].join('\n');
+        const pane = tableFilterState.activePane;
+        downloadBlob(csv, 'text/csv;charset=utf-8;', `import_${pane}_filtered_${new Date().toISOString().slice(0, 10)}.csv`);
+        showToast('Export CSV de la vue filtrée terminé.', 'success');
+    }
+
+    function exportVisibleRowsAsJson() {
+        const rows = tableFilterState.visibleRows || [];
+        if (!rows.length) {
+            showToast('Aucune ligne visible à exporter.', 'warning');
+            return;
+        }
+        const pane = tableFilterState.activePane;
+        downloadBlob(JSON.stringify(rows, null, 2), 'application/json;charset=utf-8;', `import_${pane}_filtered_${new Date().toISOString().slice(0, 10)}.json`);
+        showToast('Export JSON de la vue filtrée terminé.', 'success');
+    }
+
+    function exportVisibleRowsAsExcel() {
+        const rows = tableFilterState.visibleRows || [];
+        if (!rows.length) {
+            showToast('Aucune ligne visible à exporter.', 'warning');
+            return;
+        }
+        if (!window.XLSX) {
+            showToast('Export Excel indisponible (bibliothèque non chargée).', 'warning');
+            return;
+        }
+        const pane = tableFilterState.activePane;
+        const worksheet = window.XLSX.utils.json_to_sheet(rows);
+        const workbook = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(workbook, worksheet, pane === 'after' ? 'Apres_Nettoyage' : 'Avant_Import');
+        window.XLSX.writeFile(workbook, `import_${pane}_filtered_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        showToast('Export Excel de la vue filtrée terminé.', 'success');
+    }
+
+    async function handleUpload(file) {
+        if (!file) return;
+
+        const allowedExtensions = ['.csv', '.xlsx', '.xls'];
+        const lowerName = file.name.toLowerCase();
+        const validExtension = allowedExtensions.some(ext => lowerName.endsWith(ext));
+
+        if (!validExtension) {
+            showToast('Format invalide. Utilisez CSV, XLSX ou XLS.', 'warning');
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('Le fichier dépasse 10 MB.', 'warning');
+            return;
+        }
+
+        resetPageState();
+        selectedFile = file;
+
+        document.getElementById('fileNameLabel').textContent = file.name;
+        document.getElementById('fileSizeLabel').textContent = `${(file.size / 1024).toFixed(1)} KB`;
+        etlLaunchZone.style.display = 'flex';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/etl/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Erreur d’upload');
+            }
+
+            etlFilename = data.filename;
+            importedRows = data.imported_rows || [];
+            cleanedRows = [];
+            tableFilterState.activePane = 'before';
+            document.getElementById('tabBeforeBtn')?.click();
+            renderTable([], 'afterTableContent');
+            applyActiveTableFilters();
+
+            rowCount.textContent = data.stats?.rows_preview ?? 0;
+            colCount.textContent = (data.stats?.columns || []).length;
+            fixRate.textContent = 'En attente';
+            changedRowsCount.textContent = '0';
+            statsContainer.classList.remove('d-none');
+
+            showToast('Fichier importé. Lancez maintenant le nettoyage ETL pour charger les données Analytics.', 'info');
+        } catch (error) {
+            console.error(error);
+            resetPageState();
+            showToast(error.message || 'Erreur lors de l’envoi du fichier.', 'danger');
+        }
+    }
+
+    async function processETL() {
+        if (!etlFilename) {
+            showToast('Veuillez d’abord uploader un fichier.', 'warning');
+            return;
+        }
+
+        if (!user || !user.id) {
+            showToast('Utilisateur non identifié. Reconnectez-vous.', 'danger');
+            return;
+        }
+
+        launchBtn.disabled = true;
+        document.getElementById('etlLoader').classList.remove('d-none');
+        etlStatus.style.display = 'block';
+        logCard.classList.add('d-none');
+        logBox.textContent = '';
+        resetSteps();
+        activateStep('step1');
+
+        try {
+            const res = await fetch('/api/etl/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.id}`
+                },
+                body: JSON.stringify({ filename: etlFilename })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.detail || data.error || 'Erreur de nettoyage');
+            }
+
+            activateStep('step2');
+            setTimeout(() => activateStep('step3'), 250);
+            setTimeout(() => activateStep('step4'), 500);
+
+            logCard.classList.remove('d-none');
+            logBox.textContent = Array.isArray(data.log) ? data.log.join('\n') : 'Traitement terminé avec succès.';
+
+            if (data.stats) {
+                rowCount.textContent = data.stats.lignes ?? 0;
+                colCount.textContent = data.stats.colonnes ?? 0;
+                fixRate.textContent = data.stats.taux_correction ?? '100%';
+            }
+
+            importedRows = data.before_rows || importedRows;
+            cleanedRows = data.after_rows || [];
+            changedRowsCount.textContent = data.changed_rows ?? 0;
+
+            renderTable(importedRows, 'beforeTableContent');
+            renderTable(cleanedRows, 'afterTableContent');
+            applyActiveTableFilters();
+
+            statsContainer.classList.remove('d-none');
+            const insertedRows = Number(data.db_result?.rows_inserted || 0);
+            if (insertedRows > 0) {
+                showToast(`Données nettoyées et enregistrées (${insertedRows} transactions chargées).`, 'success');
+            } else {
+                showToast('Traitement terminé mais aucune transaction n’a été chargée. Vérifiez le fichier source.', 'warning');
+            }
+            await fetchHistory();
+
+            const afterTab = document.getElementById('tabAfterBtn');
+            if (afterTab) afterTab.click();
+        } catch (error) {
+            console.error(error);
+            showToast(error.message || 'Erreur serveur lors du nettoyage.', 'danger');
+        } finally {
+            launchBtn.disabled = false;
+            document.getElementById('etlLoader').classList.add('d-none');
+        }
+    }
+
+    /* ─ Chatbot ─ */
+    function toggleChat() {
+        document.getElementById('chatbotPanel').classList.toggle('panel-hidden');
+    }
+
+    function chatNow() { return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+
+    function appendMsg(text, role = 'bot') {
+        const area = document.getElementById('chatMessages');
+        const wrap = document.createElement('div');
+        wrap.className = `chat-msg ${role}`;
+        wrap.innerHTML = `
+            <div class="chat-bubble">${text}</div>
+            <div class="chat-time">${chatNow()}</div>
+        `;
+        area.appendChild(wrap);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    function showTyping() {
+        const area = document.getElementById('chatMessages');
+        const typing = document.createElement('div');
+        typing.className = 'chat-msg bot';
+        typing.id = 'typingIndicator';
+        typing.innerHTML = `<div class="chat-bubble"><div class="typing-indicator">
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+        </div></div>`;
+        area.appendChild(typing);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    function hideTyping() {
+        const t = document.getElementById('typingIndicator');
+        if (t) t.remove();
+    }
+
+    async function sendChat(message) {
+        if (!message.trim()) return;
+        document.getElementById('chatSuggestions').style.display = 'none';
+        appendMsg(message, 'user');
+        document.getElementById('chatInput').value = '';
+        document.getElementById('chatSendBtn').disabled = true;
+        showTyping();
+
+        try {
+            const res = await fetch('/api/chatbot/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+            const data = await res.json();
+            hideTyping();
+            appendMsg(data.answer || 'Désolé, je n\'ai pas compris.', 'bot');
+        } catch {
+            hideTyping();
+            appendMsg('Erreur de connexion, réessayez.', 'bot');
+        } finally {
+            document.getElementById('chatSendBtn').disabled = false;
+        }
+    }
+
+    // Sidebar toggle with content shift
+    document.getElementById('histToggle').addEventListener('click', () => {
+        const sidebar = document.getElementById('histSidebar');
+        const main = document.getElementById('mainContainer');
+        sidebar.classList.toggle('collapsed');
+        if (main) {
+            main.style.marginLeft = sidebar.classList.contains('collapsed')
+                ? 'var(--hist-col-w)'
+                : 'var(--hist-width)';
+        }
+    });
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+            handleUpload(e.target.files[0]);
+        }
+    });
+
+    launchBtn.addEventListener('click', processETL);
+    clearBtn.addEventListener('click', resetPageState);
+
+    document.getElementById('tabBeforeBtn')?.addEventListener('shown.bs.tab', () => {
+        tableFilterState.activePane = 'before';
+        applyActiveTableFilters();
+    });
+    document.getElementById('tabAfterBtn')?.addEventListener('shown.bs.tab', () => {
+        tableFilterState.activePane = 'after';
+        applyActiveTableFilters();
+    });
+
+    searchInput?.addEventListener('input', () => {
+        tableFilterState.search = searchInput.value || '';
+        applyActiveTableFilters();
+    });
+    filterDept?.addEventListener('change', () => {
+        tableFilterState.department = filterDept.value || '';
+        applyActiveTableFilters();
+    });
+    filterTransactionType?.addEventListener('change', () => {
+        tableFilterState.transactionType = filterTransactionType.value || '';
+        applyActiveTableFilters();
+    });
+    filterExpenseType?.addEventListener('change', () => {
+        tableFilterState.expenseType = filterExpenseType.value || '';
+        applyActiveTableFilters();
+    });
+    filterDateValue?.addEventListener('change', () => {
+        tableFilterState.dateValue = filterDateValue.value || '';
+        applyActiveTableFilters();
+    });
+    resetTableFiltersBtn?.addEventListener('click', resetTableFilters);
+
+    exportFilteredCsvBtn?.addEventListener('click', exportVisibleRowsAsCsv);
+    exportFilteredExcelBtn?.addEventListener('click', exportVisibleRowsAsExcel);
+    exportFilteredJsonBtn?.addEventListener('click', exportVisibleRowsAsJson);
+
+    document.getElementById('chatLauncher').addEventListener('click', () => {
+        toggleChat();
+        // Show welcome message on first open
+        const area = document.getElementById('chatMessages');
+        if (!area.dataset.welcomed) {
+            area.dataset.welcomed = '1';
+            setTimeout(() => appendMsg('<i class="bi bi-robot me-1"></i>Bonjour ! Je suis votre assistant BI. Posez-moi une question sur vos données.', 'bot'), 300);
+        }
+    });
+    document.getElementById('chatCloseBtn').addEventListener('click', toggleChat);
+    document.getElementById('chatSendBtn').addEventListener('click', () => {
+        const v = document.getElementById('chatInput').value;
+        if (v.trim()) sendChat(v);
+    });
+    document.getElementById('chatInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const v = e.target.value;
+            if (v.trim()) sendChat(v);
+        }
+    });
+
+    // Quick suggestion chips
+    document.querySelectorAll('.cp-chip').forEach(chip => {
+        chip.addEventListener('click', () => sendChat(chip.textContent.trim()));
+    });
+
+    hydrateSidebarUser(user);
+    resetTableFilters();
+    resetSteps();
+    fetchHistory();
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,2 @@
+Date,DepartementID,Département,TypeTransaction,TypeDépense,Montant,Responsable,Client_Fournisseur,Projet
+2026-01-01,D1,IT,Revenu,N/A,1000,Sam,ClientA,Proj1

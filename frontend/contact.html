@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact - BusinessApp</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="css/page-bg.css" rel="stylesheet">
+    <link href="css/app-ux.css" rel="stylesheet">
+    <link href="css/charts-global-theme.css" rel="stylesheet">
+    <link href="css/topbar-shell.css" rel="stylesheet">
+    <script src="js/theme-manager.js"></script>
+    <script src="js/ui-core.js"></script>
+
+    <style>
+        :root {
+            --primary: #075b65;
+            --secondary: #1D3557;
+            --accent: #F1FAEE;
+            --dark: #110649;
+            --light: #FEFEFE;
+            --gradient: linear-gradient(135deg, #0b585b 0%, #085058 100%);
+            --shadow: 0 20px 60px rgba(230, 57, 70, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Space Mono', monospace;
+            background: transparent;
+            color: var(--light);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+
+
+        .page-shell > .container {
+            width: min(1180px, 100%);
+            max-width: 1180px;
+            margin: 0 auto;
+            margin-left: auto;
+            margin-right: auto;
+            padding: clamp(28px, 5vw, 46px) clamp(16px, 4vw, 36px) 64px;
+            display: grid;
+            grid-template-columns: minmax(300px, 0.95fr) minmax(360px, 1.05fr);
+            gap: clamp(1.75rem, 4vw, 3.25rem);
+            align-items: start;
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .contact-info {
+            position: relative;
+            top: 0;
+        }
+
+        .section-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        h1 {
+            font-family: 'Space Mono', monospace;
+            font-size: clamp(2.4rem, 4.6vw, 3.65rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.4rem;
+            letter-spacing: -2px;
+        }
+
+        .highlight {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        .intro-text {
+            font-size: 1.1rem;
+            color: rgba(254, 254, 254, 0.7);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .info-card {
+            background: rgba(29, 53, 87, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(230, 57, 70, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 1rem;
+            transition: all 0.4s ease;
+        }
+
+        .info-card:hover {
+            transform: translateX(10px);
+            border-color: rgba(230, 57, 70, 0.4);
+            box-shadow: var(--shadow);
+        }
+
+        .info-card h3 {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-card p { font-size: 1.1rem; color: var(--light); }
+
+        .info-card a {
+            color: var(--light);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .info-card a:hover { color: var(--primary); }
+
+        .contact-form-wrapper {
+            background: rgba(29, 53, 87, 0.2);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(230, 57, 70, 0.15);
+            border-radius: 24px;
+            padding: clamp(24px, 4vw, 40px);
+            box-shadow: var(--shadow);
+            animation: slideIn 1s ease-out 0.3s both;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .form-header { margin-bottom: 2.5rem; }
+
+        .form-header h2 {
+            font-family: 'Space Mono', monospace;
+            font-size: clamp(1.8rem, 3vw, 2.45rem);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-header p { color: rgba(254, 254, 254, 0.6); }
+
+        .form-group { margin-bottom: 2rem; }
+
+        label {
+            display: block;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.75rem;
+            color: rgba(254, 254, 254, 0.9);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background: rgba(29, 53, 87, 0.4);
+            border: 2px solid rgba(230, 57, 70, 0.2);
+            border-radius: 12px;
+            color: var(--light);
+            font-size: 1rem;
+            font-family: 'Space Mono', monospace;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(29, 53, 87, 0.6);
+            box-shadow: 0 0 0 4px rgba(7, 91, 101, 0.1);
+        }
+
+        input::placeholder, textarea::placeholder { color: rgba(254, 254, 254, 0.4); }
+
+        textarea { min-height: 150px; resize: vertical; }
+        select { cursor: pointer; }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            text-transform: none;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0;
+            color: rgba(254, 254, 254, 0.8);
+            font-weight: 400;
+            font-size: 0.95rem;
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 1.25rem 2rem;
+            background: var(--gradient);
+            border: none;
+            border-radius: 12px;
+            color: var(--light);
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(230, 57, 70, 0.3);
+            margin-top: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button[type="submit"]::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        button[type="submit"]:hover::before { left: 100%; }
+
+        button[type="submit"]:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(230, 57, 70, 0.4);
+        }
+
+        button[type="submit"]:active { transform: translateY(-1px); }
+        button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        @keyframes success {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .success-message {
+            display: none;
+            background: rgba(72, 187, 120, 0.2);
+            border: 2px solid #48BB78;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            text-align: center;
+            animation: success 0.5s ease-out;
+        }
+
+        .success-message.show { display: block; }
+
+        @media (max-width: 1024px) {
+            .page-shell > .container {
+                grid-template-columns: 1fr;
+                max-width: 840px;
+                gap: 2.2rem;
+                padding-top: 28px;
+            }
+            h1 { font-size: clamp(2.25rem, 6vw, 3rem); }
+        }
+
+        @media (max-width: 768px) {
+            h1 { letter-spacing: -1px; }
+            .contact-form-wrapper { padding: 2rem; }
+            .page-shell > .container {
+                padding: 24px 14px 44px;
+                gap: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+  <div class="page-bg">
+    <div class="bg-img"></div>
+    <div class="bg-veil"></div>
+    <div class="bg-grid"></div>
+  </div>
+
+  <div class="page-shell">
+    <nav class="topbar">
+      <a class="brand" href="dash.html"><span class="brand-dot"></span>Finova</a>
+      <div class="tnav nav-left">
+        <a href="dash.html">Import de données</a>
+        <a href="charts.html">Analyse</a>
+        <a href="assistance.html">Assistance</a>
+      </div>
+      <div class="tnav nav-right">
+        <a href="profile.html">Profil</a>
+        <a href="contact.html" class="active">Contact</a>
+        <a href="admin.html" id="navAdminItem" style="display:none;">Admin</a>
+      </div>
+      <div class="tr2">
+        <button class="theme-toggle" id="themeToggle" type="button">
+          <span id="themeIcon"><i class="bi bi-moon-stars-fill"></i></span>
+          <span id="themeLabel">Sombre</span>
+        </button>
+        <div class="upill" id="userPill">
+          <div class="uav" id="userAvatar">U</div>
+          <span id="navUser">Chargement…</span>
+          <div class="udrop" id="userMenu">
+            <div class="udrop-header">
+              <div class="uav-lg" id="menuUserAvatarLg">U</div>
+              <div class="udrop-name" id="menuUserName">Molk H</div>
+              <div class="udrop-email" id="menuUserEmail">molk@example.com</div>
+            </div>
+            <div class="udrop-actions">
+              <a href="profile.html">
+                <i class="bi bi-person-circle" style="font-size:1.1rem"></i> Gérer votre compte
+              </a>
+            </div>
+            <div class="udrop-footer">
+              <button id="logoutNav" class="lo-btn">Se déconnecter</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <!-- Left: Info -->
+      <div class="contact-info">
+        <span class="section-label">Contactez-nous</span>
+        <h1>Restons en <span class="highlight">Contact</span></h1>
+        <p class="intro-text">
+          Notre équipe est à votre disposition pour répondre à toutes vos questions
+          et vous accompagner dans vos projets. N'hésitez pas à nous contacter.
+        </p>
+
+        <div class="info-card">
+          <h3>Téléphone</h3>
+          <p><a href="tel:+21671000000">+216 71 000 000</a></p>
+        </div>
+        <div class="info-card">
+          <h3>Email</h3>
+          <p><a href="mailto:contact@businessapp.com">contact@businessapp.com</a></p>
+        </div>
+        <div class="info-card">
+          <h3>Adresse</h3>
+          <p>Avenue Habib Bourguiba<br>1002 Tunis, Tunisie</p>
+        </div>
+        <div class="info-card">
+          <h3>Horaires</h3>
+          <p>Lundi - Vendredi: 8h - 17h<br>Samedi: 8h - 13h</p>
+        </div>
+      </div>
+
+      <!-- Right: Form -->
+      <div class="contact-form-wrapper">
+        <div class="form-header">
+          <h2>Envoyez-nous un message</h2>
+          <p>Remplissez le formulaire ci-dessous et nous vous répondrons dans les plus brefs délais.</p>
+        </div>
+
+        <form id="contactForm">
+          <div class="form-group">
+            <label for="name">Nom complet *</label>
+            <input type="text" id="name" name="name" required placeholder="Prénom et nom">
+          </div>
+          <div class="form-group">
+            <label for="email">Email *</label>
+            <input type="email" id="email" name="email" required placeholder="exemple@example.com">
+          </div>
+          <div class="form-group">
+            <label for="phone">Téléphone</label>
+            <input type="tel" id="phone" name="phone" placeholder="+216 XX XXX XXX">
+          </div>
+          <div class="form-group">
+            <label for="subject">Sujet *</label>
+            <select id="subject" name="subject" required>
+              <option value="">Sélectionnez un sujet</option>
+              <option value="commercial">Demande commerciale</option>
+              <option value="technique">Support technique</option>
+              <option value="facturation">Questions de facturation</option>
+              <option value="partenariat">Opportunité de partenariat</option>
+              <option value="reclamation">Réclamation</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="message">Message *</label>
+            <textarea id="message" name="message" required placeholder="Décrivez votre demande..."></textarea>
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="newsletter" name="newsletter">
+            <label for="newsletter">J'accepte de recevoir des communications marketing de BusinessApp</label>
+          </div>
+          <button type="submit">Envoyer le message</button>
+          <div class="success-message" id="successMessage"></div>
+        </form>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="js/contact.js"></script>
+  </div>
+</body>
+</html>
