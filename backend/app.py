@@ -64,6 +64,20 @@ _etl_mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_etl_mod)
 run_generic_etl = _etl_mod.run_generic_etl
 
+oauth = OAuth(app)
+_GOOGLE_CLIENT_ID = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
+_GOOGLE_CLIENT_SECRET = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip()
+
+google = None
+if _GOOGLE_CLIENT_ID and _GOOGLE_CLIENT_SECRET:
+    google = oauth.register(
+        name="google",
+        client_id=_GOOGLE_CLIENT_ID,
+        client_secret=_GOOGLE_CLIENT_SECRET,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+
 # ═══════════════════════════════════════════════════════════════
 # GOOGLE OAUTH
 # ═══════════════════════════════════════════════════════════════
@@ -439,11 +453,15 @@ def _oauth_html(user_data: dict, redirect_url: str) -> str:
 
 @app.route("/api/auth/google")
 def google_login():
+    if google is None:
+        return jsonify({"success": False, "error": "Google OAuth non configure"}), 503
     return google.authorize_redirect(url_for("google_callback", _external=True))
 
 
 @app.route("/api/auth/google/callback")
 def google_callback():
+    if google is None:
+        return jsonify({"success": False, "error": "Google OAuth non configure"}), 503
     try:
         token     = google.authorize_access_token()
         user_info = token.get("userinfo") or {}
@@ -1578,7 +1596,7 @@ def analytics_data():
                    YEAR(d.Date) AS annee,
                    MONTH(d.Date) AS mois,
                    QUARTER(d.Date) AS trimestre,
-                   CONCAT(YEAR(d.Date), '-', LPAD(MONTH(d.Date), 2, '0')) AS `year_month`,
+                   CONCAT(YEAR(d.Date), '-', LPAD(MONTH(d.Date), 2, '0')) AS periode_mois,
                    dep.NomDepartement AS departement,
                    tt.TypeTransaction AS type_transaction,
                    td.TypeDepense AS type_depense,
@@ -1650,7 +1668,7 @@ def kpi_refresh():
             SELECT t.Montant, t.Montant_Signe,
                    YEAR(d.Date) AS annee,
                    QUARTER(d.Date) AS trimestre,
-                   CONCAT(YEAR(d.Date), '-', LPAD(MONTH(d.Date), 2, '0')) AS `year_month`,
+                   CONCAT(YEAR(d.Date), '-', LPAD(MONTH(d.Date), 2, '0')) AS periode_mois,
                    dep.NomDepartement AS departement, dep.Departement_ID,
                    tt.TypeTransaction AS type_transaction, td.TypeDepense AS type_depense
             FROM transactions t
@@ -1716,7 +1734,7 @@ def kpi_refresh():
 
             tt_data[row.get("type_transaction") or "Autre"].append(amount)
             td_data[row.get("type_depense") or "Autre"].append(amount)
-            ym_data[row.get("year_month") or "0000-00"].append(amount)
+            ym_data[row.get("periode_mois") or "0000-00"].append(amount)
 
         for key, vals in q_data.items():
             kpis.append({
@@ -1753,13 +1771,13 @@ def kpi_refresh():
             })
 
         sorted_ym = sorted(ym_data)
-        for idx, year_month in enumerate(sorted_ym):
-            val = round(sum(ym_data[year_month]), 2)
+        for idx, periode_mois in enumerate(sorted_ym):
+            val = round(sum(ym_data[periode_mois]), 2)
             prev = round(sum(ym_data[sorted_ym[idx - 1]]), 2) if idx > 0 else val
             evolution = round((val - prev) / prev * 100, 2) if prev else 0
             kpis.append({
                 "kpiNom": "CA_Mensuel",
-                "periode": year_month,
+                "periode": periode_mois,
                 "valeur": val,
                 "evolution": evolution,
                 "stat_type": "sum",
@@ -1824,45 +1842,325 @@ def chatbot_ask():
     except Exception as e:
         return jsonify({"answer": f"Erreur : {e}"}), 500
 
-# ═══════════════════════════════════════════════════════════════
-# simulation what-if
-# ═══════════════════════════════════════════════════════════════
 @app.route("/api/assistance/simulate", methods=["POST"])
 def simulate_what_if():
+    user_id = get_current_user()
+    if not user_id:
+        return jsonify({"error": "Auth requis"}), 401
+
+    import unicodedata
+
+    def norm_txt(value):
+        s = unicodedata.normalize("NFKD", str(value or ""))
+        s = s.encode("ascii", "ignore").decode("ascii")
+        return re.sub(r"\s+", " ", s).strip().lower()
+
+    def fnum(value):
+        try:
+            return float(value or 0)
+        except Exception:
+            return 0.0
+
+    def fmt_amount(value):
+        return f"{value:,.2f} DT".replace(",", " ")
+
+    def pct_impact(delta, base_solde):
+        if not base_solde:
+            return 0.0
+        return abs(delta) / abs(base_solde) * 100.0
+
+    def severity_from_pct(pct):
+        if pct > 20:
+            return "danger"
+        if pct > 5:
+            return "warning"
+        return "success"
+
     try:
-        data = request.get_json()
-        amount = float(data.get("amount", 0))
-        
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-        
-        # On récupère le montant total des revenus pour comparer
-        cursor.execute("SELECT SUM(Montant_Signe) as solde FROM transactions")
-        row = cursor.fetchone()
-        solde_actuel = float(row['solde'] or 0)
-        
-        # Calcul de l'impact (Exemple: quel % du solde cette transaction représente)
-        if solde_actuel != 0:
-            impact_percent = (amount / abs(solde_actuel)) * 100
-        else:
-            impact_percent = 0
+        data = request.get_json(silent=True) or {}
+        scenario = (data.get("scenario") or "").strip()
 
-        # Génération d'une recommandation dynamique
-        if impact_percent > 20:
-            rec = "⚠️ Risque élevé : Cette transaction pèse lourdement sur vos réserves actuelles."
-        elif impact_percent > 5:
-            rec = "🧐 Vigilance : Impact modéré sur la trésorerie. Vérifiez vos priorités."
-        else:
-            rec = "✅ Risque faible : Votre structure financière peut absorber cette transaction sans difficulté."
+        rows = run_query("""
+            SELECT
+                ABS(COALESCE(t.Montant, 0)) AS montant_abs,
+                COALESCE(
+                    t.Montant_Signe,
+                    CASE
+                        WHEN tt.TypeTransaction = 'Revenu' THEN ABS(COALESCE(t.Montant, 0))
+                        ELSE -ABS(COALESCE(t.Montant, 0))
+                    END
+                ) AS montant_signe,
+                dep.NomDepartement AS departement,
+                tt.TypeTransaction AS type_transaction,
+                td.TypeDepense AS type_depense,
+                r.NomResponsable AS responsable,
+                cf.NomClientFournisseur AS client_fournisseur,
+                cf.Type AS client_fournisseur_type,
+                p.NomProjet AS projet,
+                d.YearMonth AS periode_mois,
+                d.Trimestre AS trimestre
+            FROM transactions t
+            LEFT JOIN `date`            d   ON d.Date_ID              = t.Date_ID
+            LEFT JOIN departement       dep ON dep.Departement_ID     = t.Departement_ID
+            LEFT JOIN typetransaction   tt  ON tt.TypeTransaction_ID  = t.TypeTransaction_ID
+            LEFT JOIN typedepense       td  ON td.TypeDepense_ID      = t.TypeDepense_ID
+            LEFT JOIN responsable       r   ON r.Responsable_ID       = t.Responsable_ID
+            LEFT JOIN clientfournisseur cf  ON cf.ClientFournisseur_ID= t.ClientFournisseur_ID
+            LEFT JOIN projet            p   ON p.Projet_ID            = t.Projet_ID
+        """)
 
-        return jsonify({
-            "impact": round(impact_percent, 2),
-            "recommendation": rec
-        })
+        if not rows:
+            return jsonify({"error": "Aucune transaction disponible"}), 400
+
+        base_solde = sum(fnum(r.get("montant_signe")) for r in rows)
+        expenses = [r for r in rows if fnum(r.get("montant_signe")) < 0]
+        revenues = [r for r in rows if fnum(r.get("montant_signe")) > 0]
+
+        result = {
+            "success": True,
+            "scenario": scenario,
+            "baseline_solde": round(base_solde, 2),
+            "new_solde": round(base_solde, 2),
+            "delta_solde": 0.0,
+            "impact_percent": 0.0,
+            "severity": "success",
+            "headline": "",
+            "recommendation": "",
+            "details": [],
+            "matched_rows": 0
+        }
+
+        # ─────────────────────────────────────────────
+        # 1) Hausse Matières premières
+        # ─────────────────────────────────────────────
+        if scenario == "matieres_premieres":
+            percent = fnum(data.get("percent", 10))
+            target_rows = [
+                r for r in expenses
+                if norm_txt(r.get("type_depense")) == norm_txt("Matières premières")
+            ]
+
+            if not target_rows:
+                return jsonify({"error": "Aucune dépense 'Matières premières' trouvée"}), 404
+
+            base_cost = sum(abs(fnum(r.get("montant_signe"))) for r in target_rows)
+            delta = -(base_cost * percent / 100.0)
+            new_solde = base_solde + delta
+
+            by_dept = defaultdict(float)
+            for r in target_rows:
+                by_dept[r.get("departement") or "Inconnu"] += abs(fnum(r.get("montant_signe")))
+            top_dept, top_dept_amount = sorted(by_dept.items(), key=lambda x: x[1], reverse=True)[0]
+
+            impact = pct_impact(delta, base_solde)
+
+            result.update({
+                "new_solde": round(new_solde, 2),
+                "delta_solde": round(delta, 2),
+                "impact_percent": round(impact, 2),
+                "severity": severity_from_pct(impact),
+                "headline": f"Une hausse de {percent:.1f}% sur les Matières premières réduit le solde net.",
+                "recommendation": (
+                    f"Priorité au département {top_dept} : il concentre la plus grande part des dépenses concernées. "
+                    f"Renégocier les achats, lisser les approvisionnements ou revoir les quantités critiques."
+                ),
+                "details": [
+                    {"label": "Dépenses concernées", "value": fmt_amount(base_cost)},
+                    {"label": "Variation appliquée", "value": f"+{percent:.1f}%"},
+                    {"label": "Impact sur le solde", "value": fmt_amount(delta)},
+                    {"label": "Département le plus exposé", "value": top_dept},
+                ],
+                "matched_rows": len(target_rows)
+            })
+
+        # ─────────────────────────────────────────────
+        # 2) Transfert budget entre départements
+        # ─────────────────────────────────────────────
+        elif scenario == "transfert_budget":
+            percent = fnum(data.get("percent", 5))
+            source_dept = (data.get("source_department") or "Ventes").strip()
+            target_dept = (data.get("target_department") or "R&D").strip()
+            expense_type = (data.get("expense_type") or "Déplacements").strip()
+
+            source_rows = [
+                r for r in expenses
+                if norm_txt(r.get("departement")) == norm_txt(source_dept)
+                and norm_txt(r.get("type_depense")) == norm_txt(expense_type)
+            ]
+            target_rows = [
+                r for r in expenses
+                if norm_txt(r.get("departement")) == norm_txt(target_dept)
+                and norm_txt(r.get("type_depense")) == norm_txt(expense_type)
+            ]
+
+            if not source_rows:
+                return jsonify({"error": f"Aucune dépense '{expense_type}' trouvée pour {source_dept}"}), 404
+
+            source_budget = sum(abs(fnum(r.get("montant_signe"))) for r in source_rows)
+            target_budget = sum(abs(fnum(r.get("montant_signe"))) for r in target_rows)
+            transfer_amount = source_budget * percent / 100.0
+
+            result.update({
+                "new_solde": round(base_solde, 2),
+                "delta_solde": 0.0,
+                "impact_percent": 0.0,
+                "severity": "success",
+                "headline": "Le transfert budgétaire ne change pas le solde global, mais modifie l’allocation interne.",
+                "recommendation": (
+                    f"Transférer {percent:.1f}% du budget '{expense_type}' de {source_dept} vers {target_dept} "
+                    f"renforce la capacité du département cible sans dégrader le solde consolidé."
+                ),
+                "details": [
+                    {"label": "Budget source actuel", "value": fmt_amount(source_budget)},
+                    {"label": "Budget cible actuel", "value": fmt_amount(target_budget)},
+                    {"label": "Montant transféré", "value": fmt_amount(transfer_amount)},
+                    {"label": "Nouveau budget source", "value": fmt_amount(source_budget - transfer_amount)},
+                    {"label": "Nouveau budget cible", "value": fmt_amount(target_budget + transfer_amount)},
+                ],
+                "matched_rows": len(source_rows)
+            })
+
+        # ─────────────────────────────────────────────
+        # 3) Baisse des commissions
+        # ─────────────────────────────────────────────
+        elif scenario == "baisse_commissions":
+            percent = fnum(data.get("percent", 15))
+            department = (data.get("department") or "Ventes").strip()
+
+            target_rows = [
+                r for r in expenses
+                if norm_txt(r.get("departement")) == norm_txt(department)
+                and norm_txt(r.get("type_depense")) == norm_txt("Commissions")
+            ]
+
+            if not target_rows:
+                return jsonify({"error": f"Aucune dépense 'Commissions' trouvée pour {department}"}), 404
+
+            base_commissions = sum(abs(fnum(r.get("montant_signe"))) for r in target_rows)
+            savings = base_commissions * percent / 100.0
+            delta = savings
+            new_solde = base_solde + delta
+            impact = pct_impact(delta, base_solde)
+
+            by_resp = defaultdict(float)
+            for r in target_rows:
+                by_resp[r.get("responsable") or "Inconnu"] += abs(fnum(r.get("montant_signe")))
+            top_resp, top_resp_amount = sorted(by_resp.items(), key=lambda x: x[1], reverse=True)[0]
+
+            result.update({
+                "new_solde": round(new_solde, 2),
+                "delta_solde": round(delta, 2),
+                "impact_percent": round(impact, 2),
+                "severity": severity_from_pct(impact),
+                "headline": f"Réduire les commissions de {percent:.1f}% améliore directement le solde net.",
+                "recommendation": (
+                    f"Commence par auditer {top_resp}, qui concentre le plus gros volume de commissions. "
+                    f"Tu peux tester un ajustement du taux de commission si la marge brute est faible."
+                ),
+                "details": [
+                    {"label": "Commissions actuelles", "value": fmt_amount(base_commissions)},
+                    {"label": "Économie estimée", "value": fmt_amount(savings)},
+                    {"label": "Département", "value": department},
+                    {"label": "Responsable le plus exposé", "value": top_resp},
+                ],
+                "matched_rows": len(target_rows)
+            })
+
+        # ─────────────────────────────────────────────
+        # 4) Hausse revenus client
+        # ─────────────────────────────────────────────
+        elif scenario == "hausse_revenu_client":
+            percent = fnum(data.get("percent", 20))
+            client = (data.get("client_fournisseur") or "Tunisair").strip()
+
+            target_rows = [
+                r for r in revenues
+                if norm_txt(r.get("client_fournisseur")) == norm_txt(client)
+            ]
+
+            if not target_rows:
+                return jsonify({"error": f"Aucun revenu trouvé pour {client}"}), 404
+
+            base_revenue = sum(fnum(r.get("montant_signe")) for r in target_rows)
+            extra_revenue = base_revenue * percent / 100.0
+            delta = extra_revenue
+            new_solde = base_solde + delta
+            impact = pct_impact(delta, base_solde)
+
+            by_project = defaultdict(float)
+            for r in target_rows:
+                by_project[r.get("projet") or "Sans projet"] += fnum(r.get("montant_signe"))
+            top_project, top_project_amount = sorted(by_project.items(), key=lambda x: x[1], reverse=True)[0]
+
+            result.update({
+                "new_solde": round(new_solde, 2),
+                "delta_solde": round(delta, 2),
+                "impact_percent": round(impact, 2),
+                "severity": severity_from_pct(impact),
+                "headline": f"Une hausse de {percent:.1f}% des revenus de {client} améliore immédiatement la rentabilité globale.",
+                "recommendation": (
+                    f"Le projet le plus porté par ce client est {top_project}. "
+                    f"Tu peux prioriser ce compte dans les négociations commerciales ou les offres de montée en gamme."
+                ),
+                "details": [
+                    {"label": "Revenus actuels du client", "value": fmt_amount(base_revenue)},
+                    {"label": "Hausse simulée", "value": f"+{percent:.1f}%"},
+                    {"label": "Gain additionnel", "value": fmt_amount(extra_revenue)},
+                    {"label": "Projet le plus rentable", "value": top_project},
+                ],
+                "matched_rows": len(target_rows)
+            })
+
+        # ─────────────────────────────────────────────
+        # 5) Dépense -> revenu
+        # ─────────────────────────────────────────────
+        elif scenario == "depense_to_revenu":
+            expense_type = (data.get("expense_type") or "Carburant").strip()
+            requested_amount = fnum(data.get("amount", 0))
+
+            target_rows = [
+                r for r in expenses
+                if norm_txt(r.get("type_depense")) == norm_txt(expense_type)
+            ]
+
+            if not target_rows:
+                return jsonify({"error": f"Aucune dépense '{expense_type}' trouvée"}), 404
+
+            available_amount = sum(abs(fnum(r.get("montant_signe"))) for r in target_rows)
+            converted_amount = requested_amount if requested_amount > 0 else available_amount
+            converted_amount = min(converted_amount, available_amount)
+
+            # Passage de -X à +X => gain net de 2X sur le solde
+            delta = converted_amount * 2.0
+            new_solde = base_solde + delta
+            impact = pct_impact(delta, base_solde)
+
+            result.update({
+                "new_solde": round(new_solde, 2),
+                "delta_solde": round(delta, 2),
+                "impact_percent": round(impact, 2),
+                "severity": severity_from_pct(impact),
+                "headline": f"Transformer une dépense '{expense_type}' en revenu agit comme un double levier sur le solde.",
+                "recommendation": (
+                    "Ce scénario est particulièrement utile pour modéliser une subvention, un remboursement fournisseur "
+                    "ou une reclassification comptable exceptionnelle."
+                ),
+                "details": [
+                    {"label": "Montant disponible", "value": fmt_amount(available_amount)},
+                    {"label": "Montant converti", "value": fmt_amount(converted_amount)},
+                    {"label": "Gain net sur le solde", "value": fmt_amount(delta)},
+                    {"label": "Type converti", "value": expense_type},
+                ],
+                "matched_rows": len(target_rows)
+            })
+
+        else:
+            return jsonify({"error": "Scénario invalide"}), 400
+
+        return jsonify(result)
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if 'conn' in locals(): conn.close()
+        return jsonify({"error": str(e), "detail": traceback.format_exc()}), 500
 
 # ═══════════════════════════════════════════════════════════════
 # CONTACT

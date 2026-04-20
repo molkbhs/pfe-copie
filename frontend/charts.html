@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
-<meta name="description" content="Tableau de bord BI executif - KPI, visualisations et analyses IA">
+<meta name="description" content="Tableau de bord BI exécutif - KPI, visualisations et analyses IA">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -39,7 +39,7 @@
 
 <div class="page-shell">
   <nav class="topbar">
-    <a class="brand" href="dash.html"><span class="brand-dot"></span>Finova</a>
+    <a class="brand" href="dash.html"><span class="brand-dot"></span>BusinessApp</a>
 
     <div class="tnav nav-left">
       <a href="dash.html">Import de données</a>
@@ -68,10 +68,10 @@
             <div class="udrop-email" id="menuUserEmail">email@example.com</div>
           </div>
           <div class="udrop-actions">
-            <a href="profile.html"><i class="bi bi-person-circle"></i> Gerer votre compte</a>
+            <a href="profile.html"><i class="bi bi-person-circle"></i> Gérer votre compte</a>
           </div>
           <div class="udrop-footer">
-            <button id="logoutNav" class="lo-btn">Se deconnecter</button>
+            <button id="logoutNav" class="lo-btn">Se déconnecter</button>
           </div>
         </div>
       </div>
@@ -84,13 +84,13 @@
         <option value="">Trimestre: Tous</option>
       </select>
       <select id="fDept" class="bi-filter-item">
-        <option value="">Departement: Tous</option>
+        <option value="">Département: Tous</option>
       </select>
       <select id="fPeriod" class="bi-filter-item">
-        <option value="">Periode: Toutes</option>
+        <option value="">Période: Toutes</option>
       </select>
       <select id="fTypeDepense" class="bi-filter-item">
-        <option value="">Type depense: Tous</option>
+        <option value="">Type dépense: Tous</option>
       </select>
       <select id="fTypeTrans" class="bi-filter-item">
         <option value="">Type transaction: Tous</option>
@@ -99,7 +99,7 @@
 
       <div class="bi-filter-actions">
         <span class="bi-filter-badge" id="activeCount">0 filtres</span>
-        <button class="bi-btn-outline" id="btnReset"><i class="bi bi-arrow-counterclockwise me-1"></i>Reinitialiser</button>
+        <button class="bi-btn-outline" id="btnReset"><i class="bi bi-arrow-counterclockwise me-1"></i>Réinitialiser</button>
         <button class="bi-btn-solid" id="btnRefreshKPI"><i class="bi bi-arrow-repeat me-1"></i>Recalculer les KPI</button>
         <div class="btn-group export-dropdown">
           <button class="bi-btn-outline dropdown-toggle" type="button" id="btnExportMenu" data-bs-toggle="dropdown" aria-expanded="false">
@@ -121,25 +121,25 @@
     <section class="exec-header">
       <div class="row g-3 align-items-center">
         <div class="col-lg-8">
-          <h1 class="exec-title"><i class="bi bi-bar-chart-line-fill me-2"></i>Tableau de bord financier executif</h1>
-          <p class="exec-subtitle" id="dataSubtitle">Chargement des donnees analytiques...</p>
+          <h1 class="exec-title"><i class="bi bi-bar-chart-line-fill me-2"></i>Tableau de bord financier exécutif</h1>
+          <p class="exec-subtitle" id="dataSubtitle">Chargement des données analytiques...</p>
         </div>
         <div class="col-lg-4">
-          <div class="exec-meta" id="lastUpdated">Derniere mise a jour: --</div>
+          <div class="exec-meta" id="lastUpdated">Dernière mise à jour: --</div>
         </div>
       </div>
 
       <div class="quick-focus" id="focusChips">
         <button class="focus-chip active" data-focus="all"><i class="bi bi-grid-1x2-fill me-1"></i>Vue globale</button>
         <button class="focus-chip" data-focus="finance"><i class="bi bi-currency-exchange me-1"></i>Finance</button>
-        <button class="focus-chip" data-focus="operations"><i class="bi bi-diagram-3-fill me-1"></i>Operations</button>
+        <button class="focus-chip" data-focus="operations"><i class="bi bi-diagram-3-fill me-1"></i>Opérations</button>
         <button class="focus-chip" data-focus="risk"><i class="bi bi-exclamation-triangle-fill me-1"></i>Risque</button>
       </div>
     </section>
 
     <section>
       <div class="section-head">
-        <h2 class="section-title"><i class="bi bi-speedometer2"></i>KPI executifs <span id="kpiCountBadge" class="bi-filter-badge ms-2">0</span></h2>
+        <h2 class="section-title"><i class="bi bi-speedometer2"></i>KPI exécutifs <span id="kpiCountBadge" class="bi-filter-badge ms-2">0</span></h2>
       </div>
       <div class="kpi-grid" id="kpiGrid"></div>
     </section>
@@ -153,42 +153,42 @@
 
     <section class="charts-zone">
       <div class="section-head">
-        <h2 class="section-title"><i class="bi bi-graph-up-arrow"></i>Recit analytique</h2>
+        <h2 class="section-title"><i class="bi bi-graph-up-arrow"></i>Récit analytique</h2>
       </div>
 
       <article class="chart-card">
-        <h6>Evolution mensuelle Revenus / Depenses / Solde net</h6>
-        <p>Vue de pilotage principale pour suivre la performance financiere.</p>
+        <h6>Évolution mensuelle Revenus / Dépenses / Solde net</h6>
+        <p>Vue de pilotage principale pour suivre la performance financière.</p>
         <div class="chart-canvas-wrap"><canvas id="chartExecutiveTrend"></canvas></div>
       </article>
 
       <div class="chart-grid-3">
         <article class="chart-card">
-          <h6>Repartition des depenses</h6>
-          <p>Poids des categories de depense sur la periode active.</p>
+          <h6>Répartition des dépenses</h6>
+          <p>Poids des catégories de dépense sur la période active.</p>
           <div class="chart-canvas-wrap compact"><canvas id="chartExpenseBreakdown"></canvas></div>
         </article>
         <article class="chart-card">
-          <h6>Repartition des transactions</h6>
+          <h6>Répartition des transactions</h6>
           <p>Distribution des transactions par type.</p>
           <div class="chart-canvas-wrap compact"><canvas id="chartTransactionMix"></canvas></div>
         </article>
         <article class="chart-card">
-          <h6>Part de CA par departement</h6>
-          <p>Contribution relative des departements.</p>
+          <h6>Part de CA par département</h6>
+          <p>Contribution relative des départements.</p>
           <div class="chart-canvas-wrap compact"><canvas id="chartDepartmentShare"></canvas></div>
         </article>
       </div>
 
       <div class="chart-grid-2">
         <article class="chart-card">
-          <h6>Performance departementale</h6>
-          <p>Comparatif net des meilleures et moins bonnes entites.</p>
+          <h6>Performance départementale</h6>
+          <p>Comparatif net des meilleures et moins bonnes entités.</p>
           <div class="chart-canvas-wrap short"><canvas id="chartDeptPerformance"></canvas></div>
         </article>
         <article class="chart-card">
-          <h6>Variance et degradation</h6>
-          <p>Solde net et variation mensuelle pour detection des alertes.</p>
+          <h6>Variance et dégradation</h6>
+          <p>Solde net et variation mensuelle pour détection des alertes.</p>
           <div class="chart-canvas-wrap short"><canvas id="chartRiskSignals"></canvas></div>
         </article>
       </div>
@@ -211,22 +211,22 @@
           <h6><i class="bi bi-robot me-2"></i>Assistant BI</h6>
           <span class="ai-badge">Contexte actif</span>
         </div>
-        <textarea id="aiQuestion" class="ai-textarea" placeholder="Ex: Quels departements degradent le solde net ce trimestre ?"></textarea>
+        <textarea id="aiQuestion" class="ai-textarea" placeholder="Ex: Quels départements dégradent le solde net ce trimestre ?"></textarea>
         <div class="d-flex gap-2 mt-2">
           <button id="aiSendBtn" class="bi-btn-solid" type="button"><i class="bi bi-send-check-fill me-1"></i>Analyser</button>
         </div>
         <div id="aiSuggestions" class="ai-suggestions">
           <button class="ai-chip">Quels signaux critiques dois-je surveiller ?</button>
-          <button class="ai-chip">Resumer la performance du mois</button>
-          <button class="ai-chip">Comparer les meilleurs et les plus faibles departements</button>
-          <button class="ai-chip">Quelles depenses expliquent la baisse ?</button>
+          <button class="ai-chip">Résumer la performance du mois</button>
+          <button class="ai-chip">Comparer les meilleurs et les plus faibles départements</button>
+          <button class="ai-chip">Quelles dépenses expliquent la baisse ?</button>
         </div>
         <div id="aiResponse" class="ai-response"></div>
       </article>
 
       <article class="ai-card">
         <div class="ai-title">
-          <h6><i class="bi bi-journal-richtext me-2"></i>Synthese de direction</h6>
+          <h6><i class="bi bi-journal-richtext me-2"></i>Synthèse de direction</h6>
         </div>
         <ul id="summaryMetrics" class="metric-list"></ul>
       </article>
@@ -235,7 +235,7 @@
 
     <section class="table-card">
       <div class="table-toolbar">
-        <h2 class="section-title mb-0"><i class="bi bi-table"></i>Tableau detaille <span id="tblCountBadge" class="bi-filter-badge ms-2">0 lignes</span></h2>
+        <h2 class="section-title mb-0"><i class="bi bi-table"></i>Tableau détaillé <span id="tblCountBadge" class="bi-filter-badge ms-2">0 lignes</span></h2>
         <div class="table-mode">
           <button id="tableModeKpi" class="active" type="button">KPI</button>
           <button id="tableModeTxn" type="button">Transactions</button>
@@ -252,7 +252,7 @@
 
     <section id="emptyState" class="empty-block" style="display:none; margin-top:16px;">
       <i class="bi bi-inbox-fill"></i>
-      <h5 class="mt-2 mb-1">Aucune donnee analytique</h5>
+      <h5 class="mt-2 mb-1">Aucune donnée analytique</h5>
       <p class="mb-0" id="emptyStateMessage">Importez un fichier via la page <a href="dash.html">Data Import</a> pour alimenter ce tableau de bord BI.</p>
     </section>
   </main>
