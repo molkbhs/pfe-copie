@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - BusinessApp</title>
+    <title>Dashboard - Finova</title>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
@@ -111,7 +111,7 @@
 
   <div class="page-shell">
     <nav class="topbar">
-        <a class="brand" href="dash.html"><span class="brand-dot"></span>Finova</a>
+        <a class="brand" href="dash.html"><span class="brand-dot"></span><span class="brand-text">Finova</span></a>
 
         <div class="tnav nav-left">
             <a href="dash.html" class="active">Import de données</a>
@@ -372,6 +372,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="js/chatbot-ai.js"></script>
 
   <script>
     const user = window.UICore?.bootstrapAuthenticatedPage?.({
@@ -379,6 +380,46 @@
         refreshProfile: true
     }) || null;
     if (!user) window.location.href = 'index.html';
+
+    function getActiveUser() {
+        return window.UICore?.getUser?.({ migrate: true }) || user || null;
+    }
+
+    function getAuthToken() {
+        const activeUser = getActiveUser();
+        return window.UICore?.getAuthToken?.(activeUser) || activeUser?.token || '';
+    }
+
+    function getAuthHeaders(json = false) {
+        const activeUser = getActiveUser();
+        if (window.UICore?.authHeaders) {
+            return window.UICore.authHeaders({ json, user: activeUser });
+        }
+        const headers = {};
+        const token = getAuthToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (json) headers['Content-Type'] = 'application/json';
+        return headers;
+    }
+
+    function authHeaders(json = false) {
+        return getAuthHeaders(json);
+    }
+
+    function ensureValidSession() {
+        const validated = window.UICore?.ensureValidSession?.({
+            user: getActiveUser(),
+            redirect: false,
+            migrate: true
+        }) || getActiveUser();
+        const token = window.UICore?.getAuthToken?.(validated) || validated?.token || '';
+        if (!validated || !token) {
+            showToast('Session expirée ou invalide. Reconnectez-vous.', 'danger');
+            window.setTimeout(() => { window.location.href = 'index.html'; }, 600);
+            return null;
+        }
+        return validated;
+    }
 
     let selectedFile = null;
     let etlFilename = null;
@@ -699,7 +740,8 @@
 async function fetchHistory() {
     const list = document.getElementById('histList');
 
-    if (!user || !user.id) {
+    const sessionUser = ensureValidSession();
+    if (!sessionUser) {
         list.innerHTML = '<div class="hist-empty">Connectez-vous pour voir l’historique.</div>';
         return;
     }
@@ -709,12 +751,14 @@ async function fetchHistory() {
     try {
         const res = await fetch('/api/etl/history', {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${user.id}`
-            }
+            headers: authHeaders()
         });
 
         const data = await res.json();
+        if (res.status === 401 || res.status === 403) {
+            window.UICore?.clearAuthState?.();
+            throw new Error('Session expirée ou invalide');
+        }
 
         if (!res.ok) {
             throw new Error(data.error || 'Impossible de charger l’historique');
@@ -836,14 +880,21 @@ async function fetchHistory() {
 
         const formData = new FormData();
         formData.append('file', file);
+        const sessionUser = ensureValidSession();
+        if (!sessionUser) return;
 
         try {
             const res = await fetch('/api/etl/upload', {
                 method: 'POST',
+                headers: authHeaders(),
                 body: formData
             });
 
             const data = await res.json();
+            if (res.status === 401 || res.status === 403) {
+                window.UICore?.clearAuthState?.();
+                throw new Error(data.error || 'Session expirée ou invalide');
+            }
 
             if (!res.ok || !data.success) {
                 throw new Error(data.error || 'Erreur d’upload');
@@ -877,7 +928,8 @@ async function fetchHistory() {
             return;
         }
 
-        if (!user || !user.id) {
+        const sessionUser = ensureValidSession();
+        if (!sessionUser) {
             showToast('Utilisateur non identifié. Reconnectez-vous.', 'danger');
             return;
         }
@@ -893,14 +945,15 @@ async function fetchHistory() {
         try {
             const res = await fetch('/api/etl/process', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${user.id}`
-                },
+                headers: authHeaders(true),
                 body: JSON.stringify({ filename: etlFilename })
             });
 
             const data = await res.json();
+            if (res.status === 401 || res.status === 403) {
+                window.UICore?.clearAuthState?.();
+                throw new Error(data.error || 'Session expirée ou invalide');
+            }
 
             if (!res.ok || !data.success) {
                 throw new Error(data.detail || data.error || 'Erreur de nettoyage');
@@ -929,8 +982,10 @@ async function fetchHistory() {
 
             statsContainer.classList.remove('d-none');
             const insertedRows = Number(data.db_result?.rows_inserted || 0);
+            window.lastSuccessfulImportId = data.import_id || null;
             if (insertedRows > 0) {
                 showToast(`Données nettoyées et enregistrées (${insertedRows} transactions chargées).`, 'success');
+                if (data.import_id) showToast(`Import #${data.import_id} enregistre.`, 'success');
             } else {
                 showToast('Traitement terminé mais aucune transaction n’a été chargée. Vérifiez le fichier source.', 'warning');
             }
@@ -983,6 +1038,13 @@ async function fetchHistory() {
         if (t) t.remove();
     }
 
+    async function getDashChatbotAnswer(message) {
+        if (window.ChatbotAI?.sendChatbotMessage) {
+            return window.ChatbotAI.sendChatbotMessage(message, 'dash');
+        }
+        return "Assistant temporairement indisponible.";
+    }
+
     async function sendChat(message) {
         if (!message.trim()) return;
         document.getElementById('chatSuggestions').style.display = 'none';
@@ -992,17 +1054,12 @@ async function fetchHistory() {
         showTyping();
 
         try {
-            const res = await fetch('/api/chatbot/ask', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message })
-            });
-            const data = await res.json();
+            const answer = await getDashChatbotAnswer(message);
             hideTyping();
-            appendMsg(data.answer || 'Désolé, je n\'ai pas compris.', 'bot');
+            appendMsg(answer || "Désolé, je n'ai pas compris.", 'bot');
         } catch {
             hideTyping();
-            appendMsg('Erreur de connexion, réessayez.', 'bot');
+            appendMsg("Je n'ai pas pu répondre. Réessayez dans quelques secondes.", 'bot');
         } finally {
             document.getElementById('chatSendBtn').disabled = false;
         }
@@ -1100,4 +1157,7 @@ async function fetchHistory() {
   </script>
 </body>
 </html>
+
+
+
 

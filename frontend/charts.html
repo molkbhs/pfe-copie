@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Analyse - BusinessApp</title>
+<title>Analyse - Finova</title>
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
@@ -21,10 +21,12 @@
 <link href="css/charts-global-theme.css" rel="stylesheet">
 <link href="css/charts-executive.css" rel="stylesheet">
 <script src="js/theme-manager.js"></script>
+<script>
+  window.AUTH_STORAGE_MODE = window.AUTH_STORAGE_MODE || 'session';
+</script>
 <script src="js/ui-core.js"></script>
 <script>
-  const __user = window.UICore?.getUser?.();
-  if (!window.UICore?.isAuthenticated?.(__user)) {
+  if (!window.UICore?.checkAuth?.({ redirectTo: 'index.html' })) {
     window.location.replace('index.html');
   }
 </script>
@@ -39,7 +41,7 @@
 
 <div class="page-shell">
   <nav class="topbar">
-    <a class="brand" href="dash.html"><span class="brand-dot"></span>BusinessApp</a>
+    <a class="brand" href="dash.html"><span class="brand-dot"></span><span class="brand-text">Finova</span></a>
 
     <div class="tnav nav-left">
       <a href="dash.html">Import de données</a>
@@ -106,7 +108,8 @@
             <i class="bi bi-download me-1"></i>Exporter les KPI
           </button>
           <ul class="dropdown-menu dropdown-menu-end export-dropdown-menu" aria-labelledby="btnExportMenu">
-            <li><button class="dropdown-item" id="exportKpiImage" type="button"><i class="bi bi-card-image me-2"></i>Exporter en image</button></li>
+            <li><button class="dropdown-item" id="exportKpiImage" type="button"><i class="bi bi-card-image me-2"></i>Exporter en PNG</button></li>
+            <li><button class="dropdown-item" id="exportKpiJpg" type="button"><i class="bi bi-image-alt me-2"></i>Exporter en JPG</button></li>
             <li><button class="dropdown-item" id="exportKpiPdf" type="button"><i class="bi bi-file-earmark-pdf me-2"></i>Exporter en PDF</button></li>
             <li><button class="dropdown-item" id="exportKpiDocx" type="button"><i class="bi bi-file-earmark-word me-2"></i>Exporter en DOCX</button></li>
             <li><button class="dropdown-item" id="exportKpiCsv" type="button"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Exporter en CSV</button></li>
@@ -130,50 +133,55 @@
       </div>
 
       <div class="quick-focus" id="focusChips">
-        <button class="focus-chip active" data-focus="all"><i class="bi bi-grid-1x2-fill me-1"></i>Vue globale</button>
-        <button class="focus-chip" data-focus="finance"><i class="bi bi-currency-exchange me-1"></i>Finance</button>
-        <button class="focus-chip" data-focus="operations"><i class="bi bi-diagram-3-fill me-1"></i>Opérations</button>
-        <button class="focus-chip" data-focus="risk"><i class="bi bi-exclamation-triangle-fill me-1"></i>Risque</button>
+        <button class="focus-chip q-pill active" data-view="global"><i class="bi bi-grid-1x2-fill me-1"></i>Vue globale</button>
+        <button class="focus-chip q-pill" data-view="departements"><i class="bi bi-diagram-3-fill me-1"></i>Départements</button>
+        <button class="focus-chip q-pill" data-view="responsables"><i class="bi bi-person-badge me-1"></i>Responsables</button>
+        <button class="focus-chip q-pill" data-view="projets"><i class="bi bi-kanban-fill me-1"></i>Projets</button>
+        <button class="focus-chip q-pill" data-view="clientsFournisseurs"><i class="bi bi-people-fill me-1"></i>Clients/Fournisseurs</button>
+      </div>
+      <div class="view-context" id="viewContext">
+        <div class="view-context-title" id="viewContextTitle">Vue globale</div>
+        <div class="view-context-desc" id="viewContextDesc">Vue consolidée: KPI financiers globaux, tendances et classement général.</div>
       </div>
     </section>
 
-    <section>
+    <section class="view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs">
       <div class="section-head">
         <h2 class="section-title"><i class="bi bi-speedometer2"></i>KPI exécutifs <span id="kpiCountBadge" class="bi-filter-badge ms-2">0</span></h2>
       </div>
       <div class="kpi-grid" id="kpiGrid"></div>
     </section>
 
-    <section>
+    <section class="view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs">
       <div class="section-head">
         <h2 class="section-title"><i class="bi bi-lightning-charge-fill"></i>Analyses et signaux</h2>
       </div>
       <div class="alert-grid" id="insightCards"></div>
     </section>
 
-    <section class="charts-zone">
+    <section class="charts-zone view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs">
       <div class="section-head">
         <h2 class="section-title"><i class="bi bi-graph-up-arrow"></i>Récit analytique</h2>
       </div>
 
-      <article class="chart-card">
+      <article class="chart-card view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs" data-card="executive-trend">
         <h6>Évolution mensuelle Revenus / Dépenses / Solde net</h6>
         <p>Vue de pilotage principale pour suivre la performance financière.</p>
         <div class="chart-canvas-wrap"><canvas id="chartExecutiveTrend"></canvas></div>
       </article>
 
       <div class="chart-grid-3">
-        <article class="chart-card">
+        <article class="chart-card view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs" data-card="expense-breakdown">
           <h6>Répartition des dépenses</h6>
           <p>Poids des catégories de dépense sur la période active.</p>
           <div class="chart-canvas-wrap compact"><canvas id="chartExpenseBreakdown"></canvas></div>
         </article>
-        <article class="chart-card">
+        <article class="chart-card view-switchable view-global view-responsables view-projets view-clients-fournisseurs" data-card="transaction-mix">
           <h6>Répartition des transactions</h6>
           <p>Distribution des transactions par type.</p>
           <div class="chart-canvas-wrap compact"><canvas id="chartTransactionMix"></canvas></div>
         </article>
-        <article class="chart-card">
+        <article class="chart-card view-switchable view-global view-departements view-clients-fournisseurs" data-card="department-share">
           <h6>Part de CA par département</h6>
           <p>Contribution relative des départements.</p>
           <div class="chart-canvas-wrap compact"><canvas id="chartDepartmentShare"></canvas></div>
@@ -181,12 +189,12 @@
       </div>
 
       <div class="chart-grid-2">
-        <article class="chart-card">
+        <article class="chart-card view-switchable view-global view-departements view-responsables view-projets" data-card="dept-performance">
           <h6>Performance départementale</h6>
           <p>Comparatif net des meilleures et moins bonnes entités.</p>
           <div class="chart-canvas-wrap short"><canvas id="chartDeptPerformance"></canvas></div>
         </article>
-        <article class="chart-card">
+        <article class="chart-card view-switchable view-global view-responsables view-projets view-clients-fournisseurs" data-card="risk-signals">
           <h6>Variance et dégradation</h6>
           <p>Solde net et variation mensuelle pour détection des alertes.</p>
           <div class="chart-canvas-wrap short"><canvas id="chartRiskSignals"></canvas></div>
@@ -194,18 +202,18 @@
       </div>
 
       <div class="chart-grid-2">
-        <article class="chart-card">
+        <article class="chart-card view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs" data-card="top-contributors">
           <h6>Principaux contributeurs</h6>
           <ul id="topContributors" class="contrib-list"></ul>
         </article>
-        <article class="chart-card">
+        <article class="chart-card view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs" data-card="bottom-contributors">
           <h6>Contributeurs en baisse</h6>
           <ul id="bottomContributors" class="contrib-list"></ul>
         </article>
       </div>
     </section>
 
-    <section class="ai-shell">
+    <section class="ai-shell view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs">
       <article class="ai-card">
         <div class="ai-title">
           <h6><i class="bi bi-robot me-2"></i>Assistant BI</h6>
@@ -233,7 +241,7 @@
     </section>
     </div>
 
-    <section class="table-card">
+    <section class="table-card view-switchable view-global view-departements view-responsables view-projets view-clients-fournisseurs">
       <div class="table-toolbar">
         <h2 class="section-title mb-0"><i class="bi bi-table"></i>Tableau détaillé <span id="tblCountBadge" class="bi-filter-badge ms-2">0 lignes</span></h2>
         <div class="table-mode">
@@ -252,8 +260,8 @@
 
     <section id="emptyState" class="empty-block" style="display:none; margin-top:16px;">
       <i class="bi bi-inbox-fill"></i>
-      <h5 class="mt-2 mb-1">Aucune donnée analytique</h5>
-      <p class="mb-0" id="emptyStateMessage">Importez un fichier via la page <a href="dash.html">Data Import</a> pour alimenter ce tableau de bord BI.</p>
+      <h5 class="mt-2 mb-1">Aucun import disponible</h5>
+      <p class="mb-0" id="emptyStateMessage">Veuillez importer un fichier depuis la page <a href="dash.html">Data Import</a>.</p>
     </section>
   </main>
 </div>
@@ -265,6 +273,10 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="js/chatbot-ai.js"></script>
 <script src="js/charts.js"></script>
 </body>
 </html>
+
+
+

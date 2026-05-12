@@ -97,6 +97,10 @@
         </div>
     </div>
 
+    <script>
+        window.AUTH_STORAGE_MODE = window.AUTH_STORAGE_MODE || 'session';
+    </script>
+    <script src="js/ui-core.js"></script>
     <script src="js/theme-manager.js"></script>
     <script>
         async function doLogin() {
@@ -129,8 +133,21 @@
                     return;
                 }
 
-                localStorage.setItem('user', JSON.stringify(data.user));
-                window.location.href = data.user.role === 'admin' ? 'admin.html' : 'dash.html';
+                const authUser = {
+                    ...(data.user || {}),
+                    token: data.token || data.user?.token || ''
+                };
+                if (!authUser.token) {
+                    throw new Error('Token JWT manquant');
+                }
+
+                if (window.UICore?.saveUser) {
+                    window.UICore.saveUser(authUser);
+                } else {
+                    sessionStorage.setItem('user', JSON.stringify(authUser));
+                    localStorage.setItem('user', JSON.stringify(authUser));
+                }
+                window.location.href = authUser.role === 'admin' ? 'admin.html' : 'dash.html';
 
             } catch (err) {
                 msg.style.color = '#ef4444';

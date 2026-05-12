@@ -1,16 +1,21 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assistance Strat&eacute;gique - BusinessApp</title>
-    <link rel="icon" type="image/png" href="assets/img/logo.png">
+    <title>Assistance Stratégique - Finova</title>
+    <link rel="icon" type="image/png" sizes="512x512" href="assets/img/logo.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="css/page-bg.css" rel="stylesheet">
     <link href="css/topbar-shell.css" rel="stylesheet">
     <link href="css/app-ux.css" rel="stylesheet">
     <link href="css/charts-global-theme.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         .kpi-bar {
@@ -215,6 +220,13 @@
             align-self: flex-end;
             border-bottom-right-radius: 4px;
         }
+        .chat-msg.error {
+            background: #fee2e2;
+            color: #991b1b;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #fecaca;
+        }
         .chat-footer {
             padding: 12px 16px;
             border-top: 1px solid var(--border, #e5e7eb);
@@ -258,26 +270,129 @@
             transition: width .6s cubic-bezier(.4,0,.2,1);
         }
 
+        /* Added sections */
+        .simple-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 16px 0 18px;
+        }
+        .simple-box {
+            background: var(--bg-surface, #f9fafb);
+            border: 1px solid var(--border, #e5e7eb);
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+        .simple-box .lbl {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--text-muted, #6b7280);
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+        .simple-box .val {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary, #1fb5b5);
+        }
+        .simple-toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .simple-toolbar .form-select { min-width: 220px; max-width: 280px; }
+        .simple-chart-wrap { position: relative; height: 340px; }
+        .simple-plain-box {
+            background: var(--bg-surface, #f9fafb);
+            border: 1px solid var(--border, #e5e7eb);
+            border-left: 4px solid var(--primary, #1fb5b5);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-top: 16px;
+            font-size: 0.88rem;
+        }
+        .segment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
         [data-theme="dark"] .kpi-tile,
         [data-theme="dark"] .sim-card,
         [data-theme="dark"] .reco-card,
         [data-theme="dark"] .reco-item,
-        [data-theme="dark"] .chat-wrap {
+        [data-theme="dark"] .chat-wrap,
+        [data-theme="dark"] .simple-box,
+        [data-theme="dark"] .simple-plain-box {
             background: #1f232a;
             border-color: #2d3340;
         }
         [data-theme="dark"] .kpi-value,
-        [data-theme="dark"] .reco-text {
-            color: #f1f5f9;
+        [data-theme="dark"] .reco-text { color: #f1f5f9; }
+        [data-theme="dark"] .sim-card,
+        [data-theme="dark"] .reco-card,
+        [data-theme="dark"] .chat-wrap,
+        [data-theme="dark"] .simple-box,
+        [data-theme="dark"] .simple-plain-box,
+        [data-theme="dark"] .result-box {
+            color: #e5edf9;
+        }
+        [data-theme="dark"] .text-muted,
+        [data-theme="dark"] .kpi-label,
+        [data-theme="dark"] .kpi-sub,
+        [data-theme="dark"] .simple-box .lbl,
+        [data-theme="dark"] .small.text-muted {
+            color: #b8c6da !important;
         }
         [data-theme="dark"] .result-box { background: #161a20; }
+        [data-theme="dark"] .alert.alert-light {
+            background: #1a202b;
+            border-color: #334155;
+            color: #dce6f6;
+        }
+        [data-theme="dark"] .form-label {
+            color: #dce6f6;
+        }
+        [data-theme="dark"] .form-control,
+        [data-theme="dark"] .form-select {
+            background: #141923;
+            border-color: #374151;
+            color: #edf3ff;
+        }
+        [data-theme="dark"] .form-control::placeholder,
+        [data-theme="dark"] .chat-input::placeholder {
+            color: #94a3b8;
+        }
+        [data-theme="dark"] .form-control:focus,
+        [data-theme="dark"] .form-select:focus,
+        [data-theme="dark"] .chat-input:focus {
+            border-color: #2dd4bf;
+            box-shadow: 0 0 0 .2rem rgba(45, 212, 191, .18);
+        }
         [data-theme="dark"] .chat-msg.bot { background: #2d3340; color: #e2e8f0; }
+        [data-theme="dark"] .chat-msg.error {
+            background: #4c1d1d;
+            color: #fecaca;
+            border-color: #7f1d1d;
+        }
         [data-theme="dark"] .card-icon.blue  { background: #1e3a5f; }
         [data-theme="dark"] .card-icon.red   { background: #4c1d1d; }
         [data-theme="dark"] .card-icon.green { background: #14352a; }
         [data-theme="dark"] .card-icon.amber { background: #3b2a0d; }
         [data-theme="dark"] .chat-input { border-color: #2d3340; color: #e2e8f0; }
         [data-theme="dark"] .reco-item { background: #161a20; }
+        [data-theme="dark"] .btn-outline-secondary {
+            color: #dce6f6;
+            border-color: #46556c;
+        }
+        [data-theme="dark"] .btn-outline-secondary:hover {
+            background: #243244;
+            border-color: #5b6f8c;
+            color: #f8fbff;
+        }
 
         .page-shell > .container {
             margin-left: auto !important;
@@ -301,9 +416,18 @@
             100% { background-position: -200% 0; }
         }
 
+        @media (max-width: 992px) {
+            .simple-grid { grid-template-columns: repeat(2, 1fr); }
+            .segment-grid { grid-template-columns: repeat(2, 1fr); }
+        }
         @media (max-width: 768px) {
             .kpi-bar { grid-template-columns: repeat(2, 1fr); }
             .reco-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 576px) {
+            .simple-grid { grid-template-columns: 1fr; }
+            .segment-grid { grid-template-columns: 1fr; }
+            .simple-toolbar .form-select { min-width: 100%; max-width: 100%; }
         }
         @media (max-width: 480px) {
             .kpi-bar { grid-template-columns: 1fr 1fr; }
@@ -311,6 +435,9 @@
     </style>
 
     <script src="js/theme-manager.js"></script>
+    <script>
+        window.AUTH_STORAGE_MODE = window.AUTH_STORAGE_MODE || 'session';
+    </script>
     <script src="js/ui-core.js"></script>
 </head>
 <body>
@@ -322,7 +449,7 @@
 
 <div class="page-shell">
     <nav class="topbar">
-        <a class="brand" href="dash.html"><span class="brand-dot"></span>BusinessApp</a>
+        <a class="brand" href="dash.html"><span class="brand-dot"></span><span class="brand-text">Finova</span></a>
         <div class="tnav nav-left">
             <a href="dash.html">Data Import</a>
             <a href="charts.html">Analytics</a>
@@ -535,20 +662,129 @@
             </div>
 
             <div class="col-12">
+                <div class="reco-card">
+                    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-3">
+                        <div>
+                            <h5 class="fw-700 mb-0">Prévision simple des tendances</h5>
+                            <span class="text-muted small">Une vue facile à lire pour comprendre ce qui peut monter ou baisser.</span>
+                        </div>
+
+                        <div class="simple-toolbar">
+                            <select id="trendType" class="form-select form-select-sm">
+                                <option value="seasonality_expenses">Prévoir mes dépenses</option>
+                                <option value="pilotage_global">Prévoir mon solde global</option>
+                                <option value="departement_depenses">Prévoir le département le plus exposé</option>
+                                <option value="fournisseur_depenses">Prévoir le fournisseur le plus coûteux</option>
+                                <option value="poste_majeur">Prévoir le poste principal</option>
+                                <option value="projet_net">Prévoir le projet le plus sensible</option>
+                            </select>
+
+                            <select id="trendHorizon" class="form-select form-select-sm">
+                                <option value="3">Horizon : 3 mois</option>
+                                <option value="6">Horizon : 6 mois</option>
+                                <option value="12">Horizon : 12 mois</option>
+                            </select>
+
+                            <button class="btn btn-primary btn-sm fw-700" id="btnTrendGenerate" type="button">
+                                Générer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="simple-grid">
+                        <div class="simple-box">
+                            <div class="lbl">Vue</div>
+                            <div class="val" id="trendMetaType">—</div>
+                        </div>
+                        <div class="simple-box">
+                            <div class="lbl">Élément principal</div>
+                            <div class="val" id="trendMetaEntity">—</div>
+                        </div>
+                        <div class="simple-box">
+                            <div class="lbl">Erreur moyenne</div>
+                            <div class="val" id="trendMetaMae">—</div>
+                        </div>
+                        <div class="simple-box">
+                            <div class="lbl">Qualité</div>
+                            <div class="val" id="trendMetaQuality">—</div>
+                        </div>
+                    </div>
+
+                    <div class="simple-chart-wrap">
+                        <canvas id="simpleTrendChart"></canvas>
+                    </div>
+
+                    <div class="simple-plain-box" id="simpleTrendErrorBox" style="display:none;"></div>
+                    <div class="simple-plain-box" id="simpleTrendSummary">
+                        Le résumé simple apparaîtra ici.
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="reco-card">
+                    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-3">
+                        <div>
+                            <h5 class="fw-700 mb-0">Profils des transactions</h5>
+                            <span class="text-muted small">Le système regroupe automatiquement les transactions en profils faciles à comprendre.</span>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <select class="form-select form-select-sm" id="segmentK" style="min-width: 180px;">
+                                <option value="3">3 profils</option>
+                                <option value="4" selected>4 profils</option>
+                                <option value="5">5 profils</option>
+                            </select>
+                            <button class="btn btn-primary btn-sm fw-700" id="runSegmentationBtn" type="button">
+                                Lancer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="result-box success h-100">
+                                <div class="small text-muted">Profil dominant</div>
+                                <div class="fw-800" id="segDominantLabel">--</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="result-box warning h-100">
+                                <div class="small text-muted">Profil à surveiller</div>
+                                <div class="fw-800" id="segRiskLabel">--</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="result-box h-100">
+                                <div class="small text-muted">Nombre de profils</div>
+                                <div class="fw-800" id="segCountLabel">--</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="segmentationList" class="segment-grid">
+                        <div class="reco-item">
+                            <div class="reco-text">Lancez l’analyse pour afficher les profils.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
                 <div class="chat-wrap">
                     <div class="chat-header">
                         <div class="chat-status"></div>
-                        <span>Assistant BusinessApp • Questions sur vos données</span>
+                        <span>Assistant IA Financier</span>
                     </div>
-                    <div class="chat-body" id="chatBody">
+                    <div class="chat-body" id="chatBox">
                         <div class="chat-msg bot">
                              Bonjour ! Je peux répondre à vos questions sur vos revenus, dépenses, transactions ou utilisateurs.
                             Essayez : <em>"Quel est mon solde ?"</em> ou <em>"Combien de transactions ?"</em>
                         </div>
                     </div>
                     <div class="chat-footer">
-                        <input class="chat-input" id="chatInput" placeholder="Posez votre question..." onkeydown="if(event.key==='Enter') sendChat()">
-                        <button class="chat-send-btn" onclick="sendChat()">Envoyer</button>
+                        <input class="chat-input" id="chatInput" placeholder="Posez votre question..." onkeydown="if(event.key==='Enter') askAIChatbot()">
+                        <button class="chat-send-btn" onclick="askAIChatbot()">Envoyer</button>
                     </div>
                 </div>
             </div>
@@ -556,10 +792,20 @@
     </div>
 </div>
 
+<script src="js/chatbot-ai.js"></script>
 <script>
 let _cachedKpis = {};
 let _analyticsRows = [];
 let _analyticsMeta = { analytics_ready: true, message: '' };
+let _currentUser = null;
+let _logoutTriggered = false;
+let simpleTrendChart = null;
+const NO_IMPORT_MESSAGE = 'Aucun import disponible. Veuillez importer un fichier depuis la page Data Import.';
+const SESSION_REQUIRED_MESSAGE = 'Session expirée. Reconnectez-vous pour consulter vos données.';
+
+function apiUrl(path) {
+    return `${window.API_BASE || ''}${path}`;
+}
 
 function fmtDT(val) {
     if (val === null || val === undefined || Number.isNaN(Number(val))) return '--';
@@ -568,52 +814,201 @@ function fmtDT(val) {
 function fmtNum(val) {
     return new Intl.NumberFormat('fr-TN').format(Number(val || 0));
 }
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function getUser() {
-    try { return JSON.parse(localStorage.getItem('user') || 'null'); }
-    catch { return null; }
-}
-function getAuthHeader() {
-    const u = getUser();
-    return u
-        ? { Authorization: 'Bearer ' + u.id, 'Content-Type': 'application/json' }
-        : { 'Content-Type': 'application/json' };
-}
-
-(function initUser() {
-    const u = getUser();
-    if (!u) {
-        window.location.href = 'index.html';
-        return;
+    if (window.UICore?.getUser) {
+        const u = window.UICore.getUser({ migrate: true });
+        if (u) return u;
     }
-    const navUser = document.getElementById('navUser');
-    const userAvatar = document.getElementById('userAvatar');
-    const adminItem = document.getElementById('navAdminItem');
 
-    if (navUser) navUser.textContent = u.firstname || u.username || u.email || 'Utilisateur';
-    if (userAvatar) userAvatar.textContent = (u.firstname || u.email || 'U')[0].toUpperCase();
-    if (adminItem && u.role === 'admin') adminItem.style.display = '';
-})();
+    try {
+        const sUser = sessionStorage.getItem('user');
+        if (sUser) return JSON.parse(sUser);
+    } catch (_) {}
+
+    try {
+        const lUser = localStorage.getItem('user');
+        if (lUser) return JSON.parse(lUser);
+    } catch (_) {}
+
+    return null;
+}
+
+function getAuthToken(user) {
+    const resolved = user || getUser();
+    if (!resolved) return '';
+    if (window.UICore?.getAuthToken) return window.UICore.getAuthToken(resolved) || '';
+    return resolved.token || '';
+}
+
+function isAuthenticatedUser(user) {
+    if (window.UICore?.isAuthenticated) return window.UICore.isAuthenticated(user);
+    return Boolean(user && user.token);
+}
+
+function authHeaders(json = false) {
+    const user = getUser();
+    if (window.UICore?.authHeaders) {
+        return window.UICore.authHeaders({ user, json });
+    }
+    const headers = {};
+    const token = getAuthToken(user);
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (json) headers['Content-Type'] = 'application/json';
+    return headers;
+}
+
+function ensureValidSession() {
+    if (window.UICore?.ensureValidSession) {
+        const validated = window.UICore.ensureValidSession({ user: getUser(), redirect: false, migrate: true });
+        if (validated && getAuthToken(validated)) return validated;
+        return null;
+    }
+    const user = getUser();
+    return isAuthenticatedUser(user) && getAuthToken(user) ? user : null;
+}
+
+function getAuthHeader() {
+    return authHeaders(true);
+}
+
+function clearLocalState(message = 'Session non authentifiée.') {
+    _cachedKpis = {};
+    _analyticsRows = [];
+    _analyticsMeta = { analytics_ready: false, message };
+
+    ['kpi-solde', 'kpi-rev', 'kpi-dep', 'kpi-nb'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = '--';
+        el.classList.remove('skeleton');
+    });
+
+    const sub = document.getElementById('kpi-solde-sub');
+    if (sub) sub.textContent = '--';
+
+    const resultEmpty = document.getElementById('scenarioResultEmpty');
+    if (resultEmpty) {
+        resultEmpty.classList.remove('d-none');
+        resultEmpty.textContent = message;
+    }
+    const resultBox = document.getElementById('scenarioResultBox');
+    if (resultBox) resultBox.classList.add('d-none');
+
+    const recoGrid = document.getElementById('recoGrid');
+    if (recoGrid) {
+        recoGrid.innerHTML = `
+            <div class="reco-item">
+                <span class="reco-badge blue">Session</span>
+                <div class="reco-text">${escapeHtml(message)}</div>
+            </div>
+        `;
+    }
+
+    const simpleTrendSummary = document.getElementById('simpleTrendSummary');
+    if (simpleTrendSummary) {
+        simpleTrendSummary.innerHTML = escapeHtml(message);
+    }
+
+    const segmentationList = document.getElementById('segmentationList');
+    if (segmentationList) {
+        segmentationList.innerHTML = `
+            <div class="reco-item">
+                <div class="reco-text">${escapeHtml(message)}</div>
+            </div>
+        `;
+    }
+
+    const simulateBtn = document.getElementById('simulateBtn');
+    if (simulateBtn) simulateBtn.disabled = true;
+}
+
+function enforceLogoutState(message = SESSION_REQUIRED_MESSAGE, redirect = true) {
+    clearLocalState(message);
+    if (!redirect || _logoutTriggered) return;
+    _logoutTriggered = true;
+    window.setTimeout(() => {
+        window.location.replace('index.html');
+    }, 250);
+}
+
+function initUserSoft() {
+    _currentUser = ensureValidSession();
+
+    if (!_currentUser || !isAuthenticatedUser(_currentUser)) {
+        console.warn('[assistance] session introuvable');
+        enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
+        return false;
+    }
+
+    try {
+        if (window.UICore?.initUserPill) {
+            window.UICore.initUserPill();
+        }
+    } catch (e) {
+        console.warn('[assistance] UICore initUserPill failed', e);
+    }
+
+    return true;
+}
+
+async function fetchJson(path, options = {}, requireAuth = true) {
+    const headers = { ...(options.headers || {}) };
+
+    if (requireAuth) {
+        const u = ensureValidSession();
+        if (!u) {
+            enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
+            const err = new Error('AUTH_REQUIRED');
+            err.code = 'AUTH_REQUIRED';
+            throw err;
+        }
+        Object.assign(headers, authHeaders(options.json === true));
+    } else if (options.json === true && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    const res = await fetch(apiUrl(path), {
+        ...options,
+        cache: options.cache || 'no-store',
+        headers
+    });
+
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+}
 
 async function loadKPIs() {
     try {
-        const res = await fetch('/api/kpi?limit=200', { headers: getAuthHeader() });
-        const data = await res.json();
-        if (!data.success) return;
-
-        const map = {};
-        for (const k of data.kpis || []) {
-            if (k.periode === 'global') map[k.kpiNom] = Number(k.valeur || 0);
+        const rows = await fetchAnalyticsRows();
+        if (!rows.length) {
+            clearLocalState(_analyticsMeta.message || NO_IMPORT_MESSAGE);
+            return;
         }
 
-        const pickKpi = (...keys) => {
-            for (const key of keys) {
-                if (Object.prototype.hasOwnProperty.call(map, key)) {
-                    const val = Number(map[key]);
-                    if (!Number.isNaN(val)) return val;
-                }
-            }
-            return null;
+        const toNum = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : 0;
         };
+
+        let rev = 0;
+        let dep = 0;
+        let solde = 0;
+        rows.forEach((r) => {
+            const signed = toNum(r.Montant_Signe);
+            solde += signed;
+            if (signed >= 0) rev += signed;
+            else dep += Math.abs(signed);
+        });
+        const nb = rows.length;
 
         function setKpi(elId, val) {
             const el = document.getElementById(elId);
@@ -624,29 +1019,24 @@ async function loadKPIs() {
             el.textContent = val;
         }
 
-        const solde = pickKpi('Solde_Net', 'Solde Net', 'SoldeNet');
-        const rev = pickKpi('Revenus', 'Revenus Totaux', 'CA_Total');
-        const dep = pickKpi('Dépenses', 'Depenses', 'Dépenses Totales', 'Depenses Totales');
-        const nb = pickKpi('Nb_Transactions', 'Nombre de transactions');
-
         _cachedKpis = {
-            ...map,
-            Solde_Net: solde,
-            Revenus: rev,
-            Depenses: dep,
+            Solde_Net: Number(solde),
+            Revenus: Number(rev),
+            Depenses: Number(dep),
             Nb_Transactions: nb
         };
 
-        setKpi('kpi-solde', solde !== null ? fmtDT(solde) : 'N/A');
-        setKpi('kpi-rev', rev !== null ? fmtDT(rev) : 'N/A');
-        setKpi('kpi-dep', dep !== null ? fmtDT(dep) : 'N/A');
-        setKpi('kpi-nb', nb !== null ? fmtNum(nb) : 'N/A');
+        setKpi('kpi-solde', fmtDT(solde));
+        setKpi('kpi-rev', fmtDT(rev));
+        setKpi('kpi-dep', fmtDT(dep));
+        setKpi('kpi-nb', fmtNum(nb));
 
         const subEl = document.getElementById('kpi-solde-sub');
-        if (subEl && solde !== null && rev !== null && rev > 0) {
+        if (subEl && rev > 0) {
             subEl.textContent = `${(solde / rev * 100).toFixed(1)}% des revenus nets`;
         }
     } catch (e) {
+        if (e?.code === 'AUTH_REQUIRED') return;
         console.warn('[KPI load]', e);
     }
 }
@@ -654,15 +1044,20 @@ async function loadKPIs() {
 async function fetchAnalyticsRows(force = false) {
     if (_analyticsRows.length && !force) return _analyticsRows;
 
-    const res = await fetch('/api/analytics/data', { headers: getAuthHeader() });
-    const data = await res.json();
+    const { res, data } = await fetchJson('/api/analytics/data', { method: 'GET' }, true);
+
+    if (res.status === 404 && String(data?.error || '').toLowerCase().includes('aucun import disponible')) {
+        _analyticsMeta = { analytics_ready: false, message: data?.message || NO_IMPORT_MESSAGE };
+        _analyticsRows = [];
+        return _analyticsRows;
+    }
 
     _analyticsMeta = {
         analytics_ready: Boolean(data.analytics_ready !== false),
         message: data.message || ''
     };
 
-    if (!data.success || !Array.isArray(data.data)) {
+    if (!res.ok || !data.success || !Array.isArray(data.data)) {
         throw new Error(data.error || 'Impossible de charger les transactions');
     }
 
@@ -756,7 +1151,7 @@ async function initScenarioForm() {
         if (!rows.length) {
             simulateBtn.disabled = true;
             emptyLabel.classList.remove('d-none');
-            emptyLabel.textContent = _analyticsMeta.message || 'Aucune donnee ETL disponible pour la simulation.';
+            emptyLabel.textContent = _analyticsMeta.message || NO_IMPORT_MESSAGE;
         } else {
             simulateBtn.disabled = false;
         }
@@ -766,6 +1161,7 @@ async function initScenarioForm() {
 
         onScenarioChange();
     } catch (e) {
+        if (e?.code === 'AUTH_REQUIRED') return;
         console.warn('[Scenario form]', e);
     }
 }
@@ -857,22 +1253,25 @@ async function simulateScenario() {
         btn.innerHTML = 'Simulation en cours...';
 
         const payload = getSimulationPayload();
-        const res = await fetch('/api/assistance/simulate', {
+        const { res, data } = await fetchJson('/api/assistance/simulate', {
             method: 'POST',
-            headers: getAuthHeader(),
+            json: true,
             body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
+        }, true);
+        if (res.status === 404 && String(data?.error || '').toLowerCase().includes('aucun import disponible')) {
+            clearLocalState(data?.message || NO_IMPORT_MESSAGE);
+            return;
+        }
         if (!res.ok || data.error) {
             throw new Error(data.error || 'Simulation impossible');
         }
 
         renderSimulationResult(data);
     } catch (e) {
+        if (e?.code === 'AUTH_REQUIRED') return;
         console.error('[simulateScenario]', e);
         document.getElementById('scenarioResultEmpty').classList.remove('d-none');
-        document.getElementById('scenarioResultEmpty').innerHTML = `<span class="text-danger">Erreur: ${e.message}</span>`;
+        document.getElementById('scenarioResultEmpty').innerHTML = `<span class="text-danger">Erreur: ${escapeHtml(e.message)}</span>`;
         document.getElementById('scenarioResultBox').classList.add('d-none');
     } finally {
         btn.disabled = false;
@@ -891,7 +1290,7 @@ async function loadRecommandations(force = false) {
             grid.innerHTML = `
                 <div class="reco-item">
                     <span class="reco-badge blue">Info</span>
-                    <div class="reco-text">Aucune donnee ETL disponible. Importez un fichier depuis Data Import puis relancez les recommandations.</div>
+                    <div class="reco-text">${escapeHtml(NO_IMPORT_MESSAGE)}</div>
                 </div>
             `;
             return;
@@ -948,7 +1347,7 @@ async function loadRecommandations(force = false) {
 
         const byMonth = {};
         expenses.forEach(r => {
-            const m = r.periode_mois || 'N/A';
+            const m = r.year_month || 'N/A';
             byMonth[m] = (byMonth[m] || 0) + absAmt(r);
         });
         const peakMonth = Object.entries(byMonth).sort((a, b) => b[1] - a[1])[0] || ['--', 0];
@@ -959,16 +1358,16 @@ async function loadRecommandations(force = false) {
         grid.innerHTML = `
             <div class="reco-item">
                 <span class="reco-badge ${topTypeShare >= 30 ? 'red' : 'amber'}">${topTypeShare >= 30 ? 'Risque cout' : 'Poste majeur'}</span>
-                <div class="reco-value">${topType[0]}</div>
+                <div class="reco-value">${escapeHtml(topType[0])}</div>
                 <div class="reco-text">
-                    Le poste <strong>${topType[0]}</strong> pese <strong>${fmtDT(topType[1])}</strong>
+                    Le poste <strong>${escapeHtml(topType[0])}</strong> pese <strong>${fmtDT(topType[1])}</strong>
                     (${topTypeShare.toFixed(1)}% des depenses). Priorisez son plan d'optimisation.
                 </div>
             </div>
 
             <div class="reco-item">
                 <span class="reco-badge ${topSupplierShare >= 40 ? 'red' : 'amber'}">Fournisseur</span>
-                <div class="reco-value">${topSupplier[0]}</div>
+                <div class="reco-value">${escapeHtml(topSupplier[0])}</div>
                 <div class="reco-text">
                     Depenses cumulees sur ce tiers : <strong>${fmtDT(topSupplier[1])}</strong>
                     (${topSupplierShare.toFixed(1)}% des depenses). Verifiez le risque de dependance fournisseur.
@@ -977,7 +1376,7 @@ async function loadRecommandations(force = false) {
 
             <div class="reco-item">
                 <span class="reco-badge ${weakestProject.net < 0 ? 'red' : 'green'}">Projet</span>
-                <div class="reco-value">${weakestProject.name}</div>
+                <div class="reco-value">${escapeHtml(weakestProject.name)}</div>
                 <div class="reco-text">
                     Net projet : <strong>${fmtDT(weakestProject.net)}</strong>
                     (Revenus ${fmtDT(weakestProject.rev)} / Depenses ${fmtDT(weakestProject.dep)}).
@@ -986,18 +1385,18 @@ async function loadRecommandations(force = false) {
 
             <div class="reco-item">
                 <span class="reco-badge amber">Saisonnalite</span>
-                <div class="reco-value">${peakQuarter[0]} / ${peakMonth[0]}</div>
+                <div class="reco-value">${escapeHtml(peakQuarter[0])} / ${escapeHtml(peakMonth[0])}</div>
                 <div class="reco-text">
-                    Pic de depenses detecte au <strong>${peakQuarter[0]}</strong> et sur <strong>${peakMonth[0]}</strong>
+                    Pic de depenses detecte au <strong>${escapeHtml(peakQuarter[0])}</strong> et sur <strong>${escapeHtml(peakMonth[0])}</strong>
                     pour <strong>${fmtDT(Math.max(peakQuarter[1], peakMonth[1]))}</strong>.
                 </div>
             </div>
 
             <div class="reco-item">
                 <span class="reco-badge ${topDept[1] > 0 ? 'amber' : 'blue'}">Departement</span>
-                <div class="reco-value">${topDept[0]}</div>
+                <div class="reco-value">${escapeHtml(topDept[0])}</div>
                 <div class="reco-text">
-                    Departement le plus expose: <strong>${topDept[0]}</strong> avec <strong>${fmtDT(topDept[1])}</strong> de depenses.
+                    Departement le plus expose: <strong>${escapeHtml(topDept[0])}</strong> avec <strong>${fmtDT(topDept[1])}</strong> de depenses.
                 </div>
             </div>
 
@@ -1011,6 +1410,7 @@ async function loadRecommandations(force = false) {
             </div>
         `;
     } catch (e) {
+        if (e?.code === 'AUTH_REQUIRED') return;
         console.warn('[Recos]', e);
         grid.innerHTML = `
             <div class="reco-item">
@@ -1021,8 +1421,267 @@ async function loadRecommandations(force = false) {
     }
 }
 
+function readableTrendType(type) {
+    const map = {
+        seasonality_expenses: 'Dépenses',
+        pilotage_global: 'Solde global',
+        departement_depenses: 'Département exposé',
+        fournisseur_depenses: 'Fournisseur coûteux',
+        poste_majeur: 'Poste principal',
+        projet_net: 'Projet sensible'
+    };
+    return map[type] || type || '—';
+}
+
+function trendQualityLabel(mae) {
+    const n = Number(mae || 0);
+    if (!n) return '—';
+    if (n < 5000) return 'Bonne';
+    if (n < 20000) return 'Moyenne';
+    return 'Faible';
+}
+
+function chartThemeColors2() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    return {
+        text: dark ? '#e2e8f0' : '#334155',
+        grid: dark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
+        historical: '#1fb5b5',
+        forecast: '#f59e0b',
+        fill: dark ? 'rgba(31,181,181,0.08)' : 'rgba(31,181,181,0.10)'
+    };
+}
+
+function renderSimpleTrendChart(payload) {
+    const canvas = document.getElementById('simpleTrendChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const colors = chartThemeColors2();
+
+    const labels = [...(payload.history?.labels || []), ...(payload.forecast?.labels || [])];
+    const historyValues = [
+        ...(payload.history?.values || []),
+        ...new Array((payload.forecast?.values || []).length).fill(null)
+    ];
+    const forecastValues = [
+        ...new Array((payload.history?.values || []).length).fill(null),
+        ...(payload.forecast?.values || [])
+    ];
+
+    if (simpleTrendChart) simpleTrendChart.destroy();
+
+    simpleTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Historique réel',
+                    data: historyValues,
+                    borderColor: colors.historical,
+                    backgroundColor: colors.fill,
+                    borderWidth: 3,
+                    tension: 0.28,
+                    pointRadius: 3,
+                    fill: false
+                },
+                {
+                    label: 'Prévision',
+                    data: forecastValues,
+                    borderColor: colors.forecast,
+                    borderWidth: 3,
+                    borderDash: [7, 5],
+                    tension: 0.28,
+                    pointRadius: 3,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    labels: { color: colors.text, font: { weight: '600' } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return `${ctx.dataset.label}: ${fmtDT(ctx.parsed.y)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+                y: {
+                    ticks: {
+                        color: colors.text,
+                        callback: function(value) { return fmtDT(value); }
+                    },
+                    grid: { color: colors.grid }
+                }
+            }
+        }
+    });
+}
+
+function fillSimpleTrend(payload) {
+    const model = payload.model || {};
+    const plain = payload.plain_language || {};
+    const where = plain.where_to_look || {};
+    const summary = payload.summary || {};
+
+    document.getElementById('trendMetaType').textContent = readableTrendType(payload.type);
+    document.getElementById('trendMetaEntity').textContent = payload.selection?.entity || 'Global';
+    document.getElementById('trendMetaMae').textContent = model.cv_mae != null ? fmtDT(model.cv_mae) : '—';
+    document.getElementById('trendMetaQuality').textContent = trendQualityLabel(model.cv_mae);
+
+    document.getElementById('simpleTrendSummary').innerHTML = `
+        <div class="fw-700 mb-2">${escapeHtml(payload.title || 'Prévision')}</div>
+        <div class="mb-2"><strong>Ce qui peut arriver :</strong> ${escapeHtml(plain.what_happens || '—')}</div>
+        <div class="mb-2"><strong>Pourquoi :</strong> ${escapeHtml(plain.why || '—')}</div>
+        <div class="mb-2">
+            <strong>Où regarder :</strong>
+            Département <b>${escapeHtml(where.departement || '—')}</b>,
+            Poste <b>${escapeHtml(where.type_depense || '—')}</b>,
+            Fournisseur <b>${escapeHtml(where.fournisseur || '—')}</b>,
+            Projet <b>${escapeHtml(where.projet || '—')}</b>,
+            Responsable <b>${escapeHtml(where.responsable || '—')}</b>
+        </div>
+        <div class="mb-2">
+            <strong>Variation attendue :</strong>
+            ${Number(summary.delta || 0) >= 0 ? '+' : ''}${fmtDT(summary.delta || 0)}
+            (${Number(summary.delta_pct || 0) >= 0 ? '+' : ''}${Number(summary.delta_pct || 0).toFixed(2)}%)
+        </div>
+        <div><strong>Action conseillée :</strong> ${escapeHtml(plain.action || '—')}</div>
+    `;
+}
+
+async function loadSimpleTrend() {
+    const btn = document.getElementById('btnTrendGenerate');
+    const errorBox = document.getElementById('simpleTrendErrorBox');
+    const type = document.getElementById('trendType')?.value || 'seasonality_expenses';
+    const horizon = document.getElementById('trendHorizon')?.value || '3';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Chargement...';
+    }
+    if (errorBox) {
+        errorBox.style.display = 'none';
+        errorBox.innerHTML = '';
+    }
+
+    try {
+        const { res, data } = await fetchJson(
+            `/api/assistance/ml-forecast?type=${encodeURIComponent(type)}&horizon=${encodeURIComponent(horizon)}`,
+            { method: 'GET' },
+            true
+        );
+        if (res.status === 404 && String(data?.error || '').toLowerCase().includes('aucun import disponible')) {
+            clearLocalState(data?.message || NO_IMPORT_MESSAGE);
+            return;
+        }
+
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || data.message || 'Prévision indisponible');
+        }
+
+        renderSimpleTrendChart(data);
+        fillSimpleTrend(data);
+    } catch (e) {
+        if (e?.code === 'AUTH_REQUIRED') return;
+        console.error('[simple trend]', e);
+        if (errorBox) {
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = `Erreur : ${escapeHtml(e.message || 'Erreur inconnue')}`;
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Générer';
+        }
+    }
+}
+
+async function runSegmentation() {
+    const btn = document.getElementById('runSegmentationBtn');
+    const k = parseInt(document.getElementById('segmentK')?.value || '4', 10);
+    const entity = 'fournisseur';
+    const list = document.getElementById('segmentationList');
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Analyse...';
+    }
+
+    try {
+        const { res, data } = await fetchJson('/api/ml/segmentation/run', {
+            method: 'POST',
+            json: true,
+            body: JSON.stringify({ k, entity })
+        }, true);
+        if (res.status === 404 && String(data?.error || '').toLowerCase().includes('aucun import disponible')) {
+            clearLocalState(data?.message || NO_IMPORT_MESSAGE);
+            return;
+        }
+
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || data.error || 'Segmentation impossible');
+        }
+
+        document.getElementById('segDominantLabel').textContent = data.overview?.dominant_segment || '--';
+        document.getElementById('segRiskLabel').textContent = data.overview?.risky_segment || '--';
+        document.getElementById('segCountLabel').textContent = data.overview?.segments_count || '--';
+
+        const segments = data.segments || [];
+        list.innerHTML = segments.map(seg => {
+            const badgeClass =
+                seg.risk_level === 'élevé' ? 'reco-badge red' :
+                seg.risk_level === 'moyen' ? 'reco-badge amber' :
+                'reco-badge green';
+            const txCount = seg.tx_count ?? seg.count ?? 0;
+            const dominantDepartment = seg.main_department || seg.dominant_department || '--';
+            const dominantType = seg.main_type || seg.dominant_depense || '--';
+            const dominantSupplier = seg.main_supplier || (Array.isArray(seg.top_entities) && seg.top_entities[0]) || '--';
+            const dominantProject = seg.main_project || '--';
+
+            return `
+                <div class="reco-item">
+                    <span class="${badgeClass}">${escapeHtml(seg.risk_level || 'faible')}</span>
+                    <div class="reco-value">${escapeHtml(seg.segment_label || 'Profil')}</div>
+                    <div class="reco-text">
+                        <strong>${txCount}</strong> transactions<br>
+                        Département dominant : <strong>${escapeHtml(dominantDepartment)}</strong><br>
+                        Poste dominant : <strong>${escapeHtml(dominantType)}</strong><br>
+                        Fournisseur dominant : <strong>${escapeHtml(dominantSupplier)}</strong><br>
+                        Projet dominant : <strong>${escapeHtml(dominantProject)}</strong>
+                    </div>
+                    <div class="small text-muted mt-2">${escapeHtml(seg.explanation || '')}</div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        if (e?.code === 'AUTH_REQUIRED') return;
+        console.error('[segmentation]', e);
+        list.innerHTML = `
+            <div class="reco-item">
+                <div class="reco-text text-danger">Erreur : ${escapeHtml(e.message || 'Segmentation indisponible')}</div>
+            </div>
+        `;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Lancer';
+        }
+    }
+}
+
 function addChatMsg(text, role) {
-    const body = document.getElementById('chatBody');
+    const body = document.getElementById('chatBox') || document.getElementById('chatBody');
+    if (!body) return;
     const div = document.createElement('div');
     div.className = `chat-msg ${role}`;
     div.textContent = text;
@@ -1030,66 +1689,90 @@ function addChatMsg(text, role) {
     body.scrollTop = body.scrollHeight;
 }
 
-async function sendChat() {
+async function sendAssistanceChatbotMessage(message, page = 'assistance') {
+    if (!window.ChatbotAI?.sendChatbotMessage) {
+        return "Assistant temporairement indisponible.";
+    }
+    return window.ChatbotAI.sendChatbotMessage(message, page);
+}
+
+async function askAIChatbot(questionOverride = '') {
     const input = document.getElementById('chatInput');
-    const msg = input.value.trim();
+    const msg = String(questionOverride || input?.value || '').trim();
     if (!msg) return;
 
-    input.value = '';
+    if (input) input.value = '';
     addChatMsg(msg, 'user');
 
-    const low = msg.toLowerCase();
-    const solde = _cachedKpis.Solde_Net;
-    const rev = _cachedKpis.Revenus;
-    const dep = _cachedKpis.Depenses;
-    const nb = _cachedKpis.Nb_Transactions;
-
-    if (/(solde|balance|disponible|reserve)/.test(low) && solde !== undefined) {
-        addChatMsg(`Votre solde net actuel est de ${fmtDT(solde)}.`, 'bot');
-        return;
-    }
-    if (/(revenu|ca|chiffre|gagne|encaissement)/.test(low) && rev !== undefined) {
-        addChatMsg(`Vos revenus totaux s'elevent a ${fmtDT(rev)}.`, 'bot');
-        return;
-    }
-    if (/(depense|depense|cout|charge|sorti|perdu|decaissement)/.test(low) && dep !== undefined) {
-        addChatMsg(`Vos depenses totales sont de ${fmtDT(dep)}.`, 'bot');
-        return;
-    }
-    if (/(transaction|operation|operation|mouvement|ligne)/.test(low) && nb !== undefined) {
-        addChatMsg(`Il y a ${fmtNum(nb)} transactions enregistrees en base.`, 'bot');
-        return;
-    }
-    if (/(ratio|rentabilite|rentabilite|marge)/.test(low) && rev && dep) {
-        const r = (dep / rev * 100).toFixed(1);
-        addChatMsg(`Votre ratio depenses/revenus est de ${r}%. ${r > 70 ? 'Il est eleve : attention a la rentabilite.' : 'Il est dans une plage acceptable.'}`, 'bot');
-        return;
-    }
-
     try {
-        const r = await fetch('/api/chatbot/ask', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: msg })
-        });
-        const d = await r.json();
-        const answer = String(d.answer || '').replace(/\u20AC/g, 'DT');
-        addChatMsg(answer, 'bot');
-    } catch {
-        addChatMsg("Je n'ai pas pu interroger le serveur. Verifiez votre connexion.", 'bot');
+        const user = ensureValidSession();
+        if (!user) {
+            enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
+            return;
+        }
+
+        const answer = await sendAssistanceChatbotMessage(msg, 'assistance');
+        addChatMsg(String(answer || '').replace(/\u20AC/g, 'DT') || "Je n'ai pas compris la question.", 'bot');
+    } catch (e) {
+        if (e?.code === 'AUTH_REQUIRED') {
+            enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
+            return;
+        }
+        addChatMsg("Je n'ai pas pu interroger l'assistant pour le moment.", 'error');
     }
 }
 
+async function sendChat() {
+    return askAIChatbot();
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
+    document.addEventListener('app:logout', () => {
+        enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
+    });
+
+    window.addEventListener('storage', (event) => {
+        if (event.key !== 'user') return;
+        if (event.newValue) return;
+        enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        if (ensureValidSession()) return;
+        enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
+    });
+
+    window.addEventListener('offline', () => {
+        clearLocalState('Connexion perdue. Les données sont masquées jusqu’à reconnexion.');
+    });
+
+    window.addEventListener('online', () => {
+        if (!ensureValidSession()) return;
+        window.location.reload();
+    });
+
+    const hasUser = initUserSoft();
+
+    if (!hasUser) {
+        return;
+    }
+
+    document.getElementById('btnTrendGenerate')?.addEventListener('click', loadSimpleTrend);
+    document.getElementById('runSegmentationBtn')?.addEventListener('click', runSegmentation);
+
     await loadKPIs();
 
     try {
         if (_cachedKpis.Solde_Net === null || _cachedKpis.Solde_Net === undefined) {
-            await fetch('/api/analytics/kpi-refresh', {
+            const { res } = await fetchJson('/api/analytics/kpi-refresh', {
                 method: 'POST',
-                headers: getAuthHeader()
-            });
-            await loadKPIs();
+                json: true
+            }, true);
+
+            if (res.ok) {
+                await loadKPIs();
+            }
         }
     } catch (e) {
         console.warn('[KPI refresh]', e);
@@ -1097,7 +1780,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     await initScenarioForm();
     await loadRecommandations();
+    await loadSimpleTrend();
 });
 </script>
 </body>
 </html>
+
+

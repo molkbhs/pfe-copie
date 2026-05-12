@@ -168,6 +168,34 @@ body { font-family: 'Inter', sans-serif; }
 }
 .focus-chip:hover { border-color: var(--primary); color: var(--primary); }
 
+.view-context {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: rgba(31, 181, 181, 0.08);
+  padding: 10px 12px;
+  margin-top: -4px;
+}
+[data-theme='dark'] .view-context {
+  background: rgba(31, 181, 181, 0.14);
+}
+.view-context-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.view-context-desc {
+  margin-top: 3px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.view-global {}
+.view-departements {}
+.view-responsables {}
+.view-projets {}
+.view-clients-fournisseurs {}
+.view-hidden { display: none !important; }
+
 .section-head {
   display: flex;
   justify-content: space-between;

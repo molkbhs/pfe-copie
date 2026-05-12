@@ -7,6 +7,20 @@ let chartReg, chartLogin, chartActivity;
 let currentPage = 1;
 let searchTimeout;
 
+function authHeaders(json = false) {
+  if (window.UICore?.authHeaders) {
+    return window.UICore.authHeaders({ json });
+  }
+  let token = '';
+  try {
+    const user = JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || 'null');
+    token = user?.token || '';
+  } catch (_) {}
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  if (json) headers['Content-Type'] = 'application/json';
+  return headers;
+}
+
 // ==================== INIT ====================
 document.addEventListener("DOMContentLoaded", () => {
   updateDateTime();
@@ -21,10 +35,15 @@ document.addEventListener("DOMContentLoaded", () => {
   if (adminLogout) {
     adminLogout.addEventListener("click", (e) => {
       e.preventDefault();
-      localStorage.clear();
-      sessionStorage.clear();
-      const url = (window.location.origin && window.location.origin !== "null") ? window.location.origin + "/index.html" : "index.html";
-      window.location.replace(url);
+      if (window.UICore?.logout) {
+        window.UICore.logout("index.html");
+        return;
+      }
+      try {
+        localStorage.removeItem("user");
+        sessionStorage.removeItem("user");
+      } catch (_) {}
+      window.location.replace("index.html");
     });
   }
 });
@@ -51,7 +70,7 @@ function debounce(fn, ms) {
 // ==================== STATS ====================
 async function loadStats() {
   try {
-    const res = await fetch(`${API}/stats`);
+    const res = await fetch(`${API}/stats`, { headers: authHeaders() });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
@@ -91,7 +110,7 @@ function animateValue(id, start, end, duration) {
 // ==================== CHARTS ====================
 async function loadChartData() {
   try {
-    const res = await fetch(`${API}/users/chart-data`);
+    const res = await fetch(`${API}/users/chart-data`, { headers: authHeaders() });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
@@ -220,7 +239,9 @@ function onSearch() {
 async function loadUsers() {
   const search = document.getElementById("searchUsers")?.value || "";
   try {
-    const res = await fetch(`${API}/users/recent?page=${currentPage}&search=${encodeURIComponent(search)}`);
+    const res = await fetch(`${API}/users/recent?page=${currentPage}&search=${encodeURIComponent(search)}`, {
+      headers: authHeaders()
+    });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
@@ -349,7 +370,7 @@ async function submitAddUser() {
   try {
     const r = await fetch('/api/admin/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(true),
       body: JSON.stringify({ firstname, lastname, email, password, role })
     });
     const d = await r.json();

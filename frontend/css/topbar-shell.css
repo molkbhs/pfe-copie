@@ -15,6 +15,49 @@
     font-size: clamp(1.02rem, 1.2vw, 1.2rem); font-weight: 800; color: var(--primary);
     text-decoration: none; letter-spacing: -0.02em;
 }
+.brand-text {
+    display: inline-block;
+    font-family: "IBM Plex Mono", "Inter", system-ui, -apple-system, sans-serif;
+    letter-spacing: 0.02em;
+    color: #0f3950;
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.25),
+        0 0 10px rgba(31, 181, 181, 0.18);
+}
+[data-theme='dark'] .brand-text {
+    color: #b7f8ff;
+    text-shadow:
+        0 0 10px rgba(103, 232, 249, 0.55),
+        0 0 22px rgba(125, 211, 252, 0.35);
+}
+
+/* Gradient artistiques seulement quand le support est fiable */
+@supports ((-webkit-background-clip: text) and (-webkit-text-fill-color: transparent)) {
+    .brand-text {
+        background: linear-gradient(120deg, #0f3950 0%, #1fb5b5 40%, #6de6ff 65%, #0f3950 100%);
+        background-size: 220% 220%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: brand-flow 8s ease-in-out infinite;
+    }
+    [data-theme='dark'] .brand-text {
+        background: linear-gradient(120deg, #7dd3fc 0%, #67e8f9 35%, #a7f3d0 65%, #7dd3fc 100%);
+        background-size: 220% 220%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .brand-text { animation: none; }
+    }
+}
+
+@keyframes brand-flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
 .brand-dot {
     width: 48px; height: 48px;
     flex-shrink: 0;

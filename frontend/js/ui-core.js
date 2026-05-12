@@ -3,34 +3,132 @@ window.API_BASE = window.location.origin.includes('localhost') || window.locatio
     ? 'http://127.0.0.1:5000'
     : window.location.origin;
 
+window.AUTH_STORAGE_MODE = (window.AUTH_STORAGE_MODE || 'session').toLowerCase();
+window.AUTH_STORAGE_KEY = window.AUTH_STORAGE_KEY || 'user';
+window.AUTH_CLEAR_ON_RELOAD = window.AUTH_CLEAR_ON_RELOAD === true;
+
 window.UICore = {
     _menuGlobalBound: false,
+    _authStorageMode: ['session', 'local'].includes(window.AUTH_STORAGE_MODE) ? window.AUTH_STORAGE_MODE : 'session',
+    _authStorageKey: window.AUTH_STORAGE_KEY || 'user',
 
-    getUser: function() {
+    _safeStorage: function(kind) {
         try {
-            return JSON.parse(localStorage.getItem('user') || 'null');
+            if (kind === 'local') return window.localStorage;
+            if (kind === 'session') return window.sessionStorage;
+            return null;
         } catch (_) {
             return null;
         }
     },
 
-    setUser: function(user) {
-        if (!user) return;
-        localStorage.setItem('user', JSON.stringify(user));
+    _getStorage: function(mode) {
+        if (String(mode || '').toLowerCase() === 'local') {
+            return this._safeStorage('local') || this._safeStorage('session');
+        }
+        return this._safeStorage('session') || this._safeStorage('local');
+    },
+
+    _readUserFromStorage: function(storage) {
+        if (!storage) return null;
+        try {
+            return JSON.parse(storage.getItem(this._authStorageKey) || 'null');
+        } catch (_) {
+            return null;
+        }
+    },
+
+    _writeUserToStorage: function(storage, user) {
+        if (!storage || !user) return;
+        try {
+            storage.setItem(this._authStorageKey, JSON.stringify(user));
+        } catch (_) {
+            // noop
+        }
+    },
+
+    _removeUserFromStorage: function(storage) {
+        if (!storage) return;
+        try {
+            storage.removeItem(this._authStorageKey);
+        } catch (_) {
+            // noop
+        }
+    },
+
+    getUser: function(options = {}) {
+        const mode = options.mode || this._authStorageMode;
+        const primary = this._getStorage(mode);
+        const secondary = this._getStorage(mode === 'local' ? 'session' : 'local');
+
+        const direct = this._readUserFromStorage(primary);
+        if (direct) return direct;
+
+        const fallback = this._readUserFromStorage(secondary);
+        const shouldMigrate = options.migrate !== false;
+        if (fallback && shouldMigrate && primary && secondary && primary !== secondary) {
+            this._writeUserToStorage(primary, fallback);
+            this._removeUserFromStorage(secondary);
+        }
+        return fallback;
+    },
+
+    saveUser: function(user, options = {}) {
+        if (!user || typeof user !== 'object') return null;
+
+        const mode = options.mode || this._authStorageMode;
+        const primary = this._getStorage(mode);
+        const secondary = this._getStorage(mode === 'local' ? 'session' : 'local');
+
+        this._writeUserToStorage(primary, user);
+        if (secondary && secondary !== primary) this._removeUserFromStorage(secondary);
+        return user;
+    },
+
+    setUser: function(user, options = {}) {
+        return this.saveUser(user, options);
+    },
+
+    removeUser: function() {
+        this._removeUserFromStorage(this._safeStorage('local'));
+        this._removeUserFromStorage(this._safeStorage('session'));
     },
 
     getAuthToken: function(user) {
         const resolved = user || this.getUser();
         if (!resolved) return '';
-        return resolved.token || resolved.id || '';
+        return resolved.token || '';
+    },
+
+    decodeJwtPayload: function(token) {
+        if (!token || typeof token !== 'string') return null;
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+        try {
+            return JSON.parse(atob(padded));
+        } catch (_) {
+            return null;
+        }
     },
 
     isAuthenticated: function(user) {
         const resolved = user || this.getUser();
         if (!resolved || typeof resolved !== 'object') return false;
-        const hasId = Boolean(resolved.id || resolved.token);
+        const hasToken = Boolean(resolved.token);
         const hasIdentity = Boolean(resolved.email || resolved.username || resolved.firstname);
-        return hasId && hasIdentity;
+        return hasToken && hasIdentity;
+    },
+
+    checkAuth: function(options = {}) {
+        const redirectTo = options.redirectTo || 'index.html';
+        const shouldRedirect = options.redirect !== false;
+        const user = this.getUser(options);
+
+        if (this.isAuthenticated(user)) return user;
+        if (shouldRedirect) window.location.replace(redirectTo);
+        return null;
     },
 
     authHeaders: function(options = {}) {
@@ -38,7 +136,7 @@ window.UICore = {
         const user = options.user || this.getUser();
         const token = this.getAuthToken(user);
         const headers = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (token) headers.Authorization = `Bearer ${token}`;
         if (json) headers['Content-Type'] = 'application/json';
         if (options.extra && typeof options.extra === 'object') {
             Object.assign(headers, options.extra);
@@ -46,22 +144,35 @@ window.UICore = {
         return headers;
     },
 
-    requireUser: function(redirectTo = 'index.html') {
-        const user = this.getUser();
-        if (!this.isAuthenticated(user)) {
-            window.location.replace(redirectTo);
+    ensureValidSession: function(options = {}) {
+        const redirectTo = options.redirectTo || 'index.html';
+        const shouldRedirect = options.redirect !== false;
+        const user = options.user || this.getUser(options);
+        const token = this.getAuthToken(user);
+
+        if (!user || !token) {
+            if (shouldRedirect) this.logout(redirectTo, { reason: 'missing_token' });
             return null;
+        }
+
+        const payload = this.decodeJwtPayload(token);
+        if (payload && typeof payload.exp === 'number') {
+            const now = Math.floor(Date.now() / 1000);
+            if (payload.exp <= now) {
+                this.clearAuthState();
+                if (shouldRedirect) window.location.replace(redirectTo);
+                return null;
+            }
         }
         return user;
     },
 
+    requireUser: function(redirectTo = 'index.html') {
+        return this.checkAuth({ redirectTo });
+    },
+
     clearAuthState: function() {
-        const theme = localStorage.getItem('theme');
-        localStorage.clear();
-        sessionStorage.clear();
-        if (theme) {
-            localStorage.setItem('theme', theme);
-        }
+        this.removeUser();
     },
 
     logout: function(redirectTo = 'index.html', options = {}) {
@@ -69,9 +180,13 @@ window.UICore = {
             document.dispatchEvent(new CustomEvent('app:logout', {
                 detail: { reason: options.reason || 'manual', redirectTo }
             }));
-        } catch (_) {}
+        } catch (_) {
+            // noop
+        }
         this.clearAuthState();
-        window.location.replace(redirectTo);
+        if (options.redirect !== false) {
+            window.location.replace(redirectTo);
+        }
     },
 
     isUnauthorizedResponse: function(response, payload) {
@@ -223,7 +338,8 @@ window.UICore = {
 
         try {
             const res = await fetch(`${window.API_BASE}/api/profile`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                cache: 'no-store',
+                headers: { Authorization: `Bearer ${token}` }
             });
             if (res.status === 401 || res.status === 403) {
                 this.logout(options.redirectTo || 'index.html', { reason: 'unauthorized' });
@@ -233,7 +349,7 @@ window.UICore = {
             const payload = await res.json();
             const fresh = payload?.data || payload || {};
             const updated = { ...user, ...fresh };
-            this.setUser(updated);
+            this.saveUser(updated);
             this.hydrateUserPill(updated);
             this.initAdminLink(updated.role);
             return updated;
@@ -245,6 +361,18 @@ window.UICore = {
         }
     }
 };
+
+(function initAuthRuntime() {
+    if (!window.AUTH_CLEAR_ON_RELOAD) return;
+    try {
+        const nav = window.performance?.getEntriesByType?.('navigation')?.[0];
+        if (nav && nav.type === 'reload') {
+            window.UICore.clearAuthState();
+        }
+    } catch (_) {
+        // noop
+    }
+})();
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.UICore.getUser()) {

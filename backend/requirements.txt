@@ -3,3 +3,10 @@ authlib
 mysql-connector-python
 flask-cors
 werkzeug
+pandas
+numpy
+pymysql
+scikit-learn
+joblib
+PyJWT
+requests

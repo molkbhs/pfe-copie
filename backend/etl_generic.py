@@ -11,6 +11,7 @@ import re
 import traceback
 import unicodedata
 import warnings
+from difflib import SequenceMatcher
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +23,10 @@ from config import DB_CONFIG
 warnings.filterwarnings("ignore")
 
 CRITICAL_CANONICAL_COLUMNS = ("Date", "Montant")
+
+DATE_FALLBACK_COLUMNS = ("YearMonth", "Année", "Mois")
+
+REJECTED_ROWS_FILENAME = "rejected_rows.csv"
 
 OPTIONAL_CANONICAL_DEFAULTS = {
     "DepartementID": None,
@@ -40,6 +45,10 @@ HEADER_ALIASES = {
         "transaction_date",
         "dateoperation",
         "date_op",
+        "date_operation",
+        "datecomptable",
+        "booking_date",
+        "posting_date",
     ],
     "DepartementID": [
         "departementid",
@@ -84,6 +93,16 @@ HEADER_ALIASES = {
         "montantdt",
         "montant_tnd",
         "total",
+        "montant_ht",
+        "montant_ttc",
+    ],
+    "Montant_Signe": [
+        "montant_signe",
+        "montant_signé",
+        "signed_amount",
+        "amount_signed",
+        "net_amount",
+        "debit_credit_amount",
     ],
     "Responsable": [
         "responsable",
@@ -178,6 +197,71 @@ def _parse_amount(value) -> float | None:
         return None
 
 
+def _parse_dates_series(series: pd.Series) -> pd.Series:
+    """
+    Parse dates with multiple strategies to support heterogeneous files.
+    This avoids losing ISO dates when `dayfirst=True` is applied globally.
+    """
+    s = series.copy()
+    parsed = pd.Series(pd.NaT, index=s.index, dtype="datetime64[ns]")
+
+    if s.empty:
+        return parsed
+
+    text = s.astype(str).str.strip()
+    ymd_mask = text.str.match(r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}$", na=False)
+    dmy_mask = text.str.match(r"^\d{1,2}[-/]\d{1,2}[-/]\d{4}$", na=False)
+
+    if ymd_mask.any():
+        parsed.loc[ymd_mask] = pd.to_datetime(text.loc[ymd_mask], errors="coerce", yearfirst=True, dayfirst=False)
+    if dmy_mask.any():
+        parsed.loc[dmy_mask] = pd.to_datetime(text.loc[dmy_mask], errors="coerce", dayfirst=True, yearfirst=False)
+
+    remaining = parsed.isna()
+    if remaining.any():
+        parsed.loc[remaining] = pd.to_datetime(s.loc[remaining], errors="coerce", dayfirst=True, yearfirst=False)
+
+    remaining = parsed.isna()
+    if remaining.any():
+        parsed.loc[remaining] = pd.to_datetime(s.loc[remaining], errors="coerce", dayfirst=False, yearfirst=False)
+
+    remaining = parsed.isna()
+    if remaining.any():
+        numeric = pd.to_numeric(s.loc[remaining], errors="coerce")
+        numeric_mask = numeric.notna()
+        if numeric_mask.any():
+            parsed.loc[numeric.index[numeric_mask]] = pd.to_datetime(
+                numeric.loc[numeric_mask], unit="D", origin="1899-12-30", errors="coerce"
+            )
+
+    return parsed
+
+
+def _infer_date_from_fallback_columns(df: pd.DataFrame, log: list) -> pd.Series | None:
+    """
+    Try to build Date from YearMonth or (Année, Mois) when Date is missing.
+    """
+    if "YearMonth" in df.columns:
+        ym = df["YearMonth"].astype(str).str.strip()
+        parsed = pd.to_datetime(ym + "-01", errors="coerce")
+        if parsed.notna().any():
+            log.append("⚠ Colonne 'Date' absente: reconstruite depuis 'YearMonth' (jour=01)")
+            return parsed
+
+    if "Année" in df.columns and "Mois" in df.columns:
+        y = pd.to_numeric(df["Année"], errors="coerce")
+        m = pd.to_numeric(df["Mois"], errors="coerce")
+        parsed = pd.to_datetime(
+            pd.DataFrame({"year": y, "month": m, "day": 1}),
+            errors="coerce",
+        )
+        if parsed.notna().any():
+            log.append("⚠ Colonne 'Date' absente: reconstruite depuis 'Année' + 'Mois' (jour=01)")
+            return parsed
+
+    return None
+
+
 def _normalize_type_transaction(value, amount_abs: float | None):
     label = _normalize_text(value)
     normalized = _normalize_header(label)
@@ -246,7 +330,7 @@ def _json_safe_records(df: pd.DataFrame) -> list:
     return out
 
 
-def _resolve_column_mapping(df: pd.DataFrame, log: list) -> pd.DataFrame:
+def _resolve_column_mapping(df: pd.DataFrame, log: list) -> tuple[pd.DataFrame, dict]:
     mapped = {}
     used_src = set()
 
@@ -256,10 +340,14 @@ def _resolve_column_mapping(df: pd.DataFrame, log: list) -> pd.DataFrame:
         if ncol and ncol not in normalized_to_original:
             normalized_to_original[ncol] = col
 
-    for canonical, aliases in HEADER_ALIASES.items():
-        candidates = [canonical, *aliases]
-        for alias in candidates:
-            n_alias = _normalize_header(alias)
+    alias_norms = {
+        canonical: [_normalize_header(canonical), *[_normalize_header(a) for a in aliases]]
+        for canonical, aliases in HEADER_ALIASES.items()
+    }
+
+    # Pass 1: exact normalized alias match
+    for canonical, candidates in alias_norms.items():
+        for n_alias in candidates:
             src = normalized_to_original.get(n_alias)
             if not src or src in used_src:
                 continue
@@ -267,18 +355,78 @@ def _resolve_column_mapping(df: pd.DataFrame, log: list) -> pd.DataFrame:
             used_src.add(src)
             break
 
+    # Pass 2: fuzzy fallback for remaining columns
+    for src_col in df.columns:
+        if src_col in used_src:
+            continue
+        n_src = _normalize_header(src_col)
+        if not n_src:
+            continue
+
+        best = (None, 0.0)
+        for canonical, candidates in alias_norms.items():
+            if canonical in mapped.values():
+                continue
+            for cand in candidates:
+                if not cand:
+                    continue
+                score = SequenceMatcher(None, n_src, cand).ratio()
+                if cand in n_src or n_src in cand:
+                    score = max(score, 0.86)
+                if score > best[1]:
+                    best = (canonical, score)
+
+        target, score = best
+        if target and score >= 0.88:
+            mapped[src_col] = target
+            used_src.add(src_col)
+
     if mapped:
         df = df.rename(columns=mapped)
         log.append(f"✓ Colonnes reconnues automatiquement : {len(mapped)}")
 
-    return df
+    mapped_summary = {src: dst for src, dst in mapped.items() if src != dst}
+    if mapped_summary:
+        sample = ", ".join(f"{k}->{v}" for k, v in list(mapped_summary.items())[:6])
+        more = " ..." if len(mapped_summary) > 6 else ""
+        log.append(f"ℹ Mapping colonnes: {sample}{more}")
+
+    return df, mapped_summary
 
 
 def _clean_dataframe(df: pd.DataFrame):
     log = []
+    clean_report = {
+        "input_rows": int(len(df)),
+        "mapped_columns_count": 0,
+        "mapped_columns": {},
+        "defaulted_optional_columns": [],
+        "duplicates_removed": 0,
+        "invalid_rows_removed": 0,
+        "invalid_by_reason": {
+            "invalid_date_only": 0,
+            "invalid_montant_only": 0,
+            "invalid_date_and_montant": 0,
+        },
+        "rows_after_cleaning": 0,
+    }
+    rejected_parts = []
+
     df = df.copy()
+    df["_source_row"] = np.arange(2, len(df) + 2)
     df.columns = [str(c).strip() for c in df.columns]
-    df = _resolve_column_mapping(df, log)
+    df, mapped_columns = _resolve_column_mapping(df, log)
+    clean_report["mapped_columns"] = mapped_columns
+    clean_report["mapped_columns_count"] = int(len(mapped_columns))
+
+    if "Date" not in df.columns:
+        inferred_date = _infer_date_from_fallback_columns(df, log)
+        if inferred_date is not None:
+            df["Date"] = inferred_date
+
+    if "Montant" not in df.columns and "Montant_Signe" in df.columns:
+        df["Montant"] = df["Montant_Signe"]
+        log.append("⚠ Colonne 'Montant' absente: reconstruction depuis 'Montant_Signe' (valeur absolue)")
 
     missing_critical = [c for c in CRITICAL_CANONICAL_COLUMNS if c not in df.columns]
     if missing_critical:
@@ -292,22 +440,30 @@ def _clean_dataframe(df: pd.DataFrame):
     for col, default in OPTIONAL_CANONICAL_DEFAULTS.items():
         if col not in df.columns:
             df[col] = default
+            clean_report["defaulted_optional_columns"].append(col)
             log.append(f"⚠ Colonne '{col}' absente : valeur par défaut appliquée")
 
-    before = len(df)
-    df = df.drop_duplicates()
-    removed = before - len(df)
-    if removed:
-        log.append(f"✓ {removed} doublon(s) supprimé(s)")
+    duplicate_mask = df.duplicated(keep="first")
+    duplicate_count = int(duplicate_mask.sum())
+    clean_report["duplicates_removed"] = duplicate_count
+    log.append(f"ℹ Doublons exacts détectés: {duplicate_count}")
+    if duplicate_count:
+        dup_df = df.loc[duplicate_mask].copy()
+        dup_df["reject_reason"] = "duplicate_exact"
+        dup_df["reject_stage"] = "cleaning_dedup"
+        rejected_parts.append(dup_df)
+        log.append(f"⚠ {duplicate_count} doublon(s) exact(s) supprimé(s)")
+    df = df.loc[~duplicate_mask].copy()
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True)
-
+    raw_date = df["Date"].copy()
+    df["Date"] = _parse_dates_series(raw_date)
     raw_amount = df["Montant"].apply(_parse_amount)
+    raw_signed = df["Montant_Signe"].apply(_parse_amount) if "Montant_Signe" in df.columns else pd.Series([None] * len(df), index=df.index)
     df["Montant"] = raw_amount.abs()
 
     df["TypeTransaction"] = [
-        _normalize_type_transaction(tt, amt)
-        for tt, amt in zip(df.get("TypeTransaction"), raw_amount)
+        _normalize_type_transaction(tt, signed if signed is not None else amt)
+        for tt, signed, amt in zip(df.get("TypeTransaction"), raw_signed, raw_amount)
     ]
 
     for col in ["Département", "TypeDépense", "Responsable", "Client_Fournisseur", "Projet"]:
@@ -319,10 +475,59 @@ def _clean_dataframe(df: pd.DataFrame):
     df["Client_Fournisseur"] = df["Client_Fournisseur"].fillna("Non renseigné")
     df["Projet"] = df["Projet"].fillna("Sans projet")
 
-    df["Montant_Signe"] = [
+    computed_signed = [
         (-abs(m) if t == "Depense" else abs(m)) if pd.notna(m) else None
         for m, t in zip(df["Montant"], df["TypeTransaction"])
     ]
+    df["Montant_Signe"] = [
+        float(signed) if signed is not None and not pd.isna(signed) else computed
+        for signed, computed in zip(raw_signed, computed_signed)
+    ]
+
+    invalid_date_mask = df["Date"].isna()
+    invalid_amount_mask = df["Montant"].isna()
+    invalid_mask = invalid_date_mask | invalid_amount_mask
+    invalid_count = int(invalid_mask.sum())
+
+    invalid_date_only = int((invalid_date_mask & ~invalid_amount_mask).sum())
+    invalid_amount_only = int((invalid_amount_mask & ~invalid_date_mask).sum())
+    invalid_both = int((invalid_date_mask & invalid_amount_mask).sum())
+
+    clean_report["invalid_rows_removed"] = invalid_count
+    clean_report["invalid_by_reason"] = {
+        "invalid_date_only": invalid_date_only,
+        "invalid_montant_only": invalid_amount_only,
+        "invalid_date_and_montant": invalid_both,
+    }
+    log.append(
+        "ℹ Validation Date/Montant: "
+        f"invalides={invalid_count}, date={invalid_date_only}, "
+        f"montant={invalid_amount_only}, date+montant={invalid_both}"
+    )
+
+    if invalid_count:
+        invalid_df = df.loc[invalid_mask].copy()
+        reasons = []
+        for d_bad, m_bad in zip(invalid_date_mask[invalid_mask], invalid_amount_mask[invalid_mask]):
+            if d_bad and m_bad:
+                reasons.append("invalid_date|invalid_montant")
+            elif d_bad:
+                reasons.append("invalid_date")
+            else:
+                reasons.append("invalid_montant")
+        invalid_df["reject_reason"] = reasons
+        invalid_df["reject_stage"] = "cleaning_validation"
+        rejected_parts.append(invalid_df)
+
+        log.append(f"⚠ {invalid_count} ligne(s) invalide(s) supprimée(s)")
+        log.append(
+            "ℹ Rejets validation: "
+            f"date={invalid_date_only}, montant={invalid_amount_only}, date+montant={invalid_both}"
+        )
+        df = df.loc[~invalid_mask].copy()
+
+    if df.empty:
+        raise ValueError("Aucune ligne exploitable après nettoyage. Vérifiez Date et Montant dans le fichier importé.")
 
     df["Année"] = df["Date"].dt.year
     df["Mois"] = df["Date"].dt.month
@@ -333,16 +538,8 @@ def _clean_dataframe(df: pd.DataFrame):
     df["YearMonth"] = df["Date"].dt.strftime("%Y-%m")
     df["AnnéeFiscale"] = df["Date"].dt.year
 
-    invalid_mask = df["Date"].isna() | df["Montant"].isna()
-    invalid_count = int(invalid_mask.sum())
-    if invalid_count:
-        log.append(f"⚠ {invalid_count} ligne(s) invalide(s) ignorée(s) (Date ou Montant)")
-        df = df[~invalid_mask]
-
-    if df.empty:
-        raise ValueError("Aucune ligne exploitable après nettoyage. Vérifiez Date et Montant dans le fichier importé.")
-
     final_cols = [
+        "_source_row",
         "Date",
         "DepartementID",
         "Département",
@@ -366,9 +563,16 @@ def _clean_dataframe(df: pd.DataFrame):
         if col not in df.columns:
             df[col] = None
 
-    df = df[final_cols]
-    log.append(f"✓ Nettoyage terminé : {len(df)} lignes, {len(df.columns)} colonnes")
-    return df.reset_index(drop=True), log
+    df = df[final_cols].copy()
+    clean_report["rows_after_cleaning"] = int(len(df))
+    log.append(f"✓ Nettoyage terminé : {len(df)} lignes, {len(df.columns) - 1} colonnes utiles")
+
+    if rejected_parts:
+        rejected_df = pd.concat(rejected_parts, ignore_index=True, sort=False)
+    else:
+        rejected_df = pd.DataFrame(columns=list(df.columns) + ["reject_reason", "reject_stage"])
+
+    return df.reset_index(drop=True), log, clean_report, rejected_df.reset_index(drop=True)
 
 
 def _fetch_lookup(cursor, table, key_col, id_col) -> dict:
@@ -551,7 +755,7 @@ def _ensure_projets(cursor, df, log) -> dict:
     return lookup
 
 
-def _load_transactions(cursor, df, maps, replace_existing, log) -> int:
+def _load_transactions(cursor, df, maps, replace_existing, log) -> dict:
     if replace_existing:
         cursor.execute("DELETE FROM `transactions`")
         next_id = 1
@@ -560,25 +764,41 @@ def _load_transactions(cursor, df, maps, replace_existing, log) -> int:
         next_id = _next_id(cursor, "transactions", "Transaction_ID")
 
     rows = []
-    skipped = 0
+    skipped_by_reason = {
+        "missing_dim_date": 0,
+        "missing_dim_departement": 0,
+        "missing_dim_typetransaction": 0,
+        "missing_dim_typedepense": 0,
+        "missing_dim_responsable": 0,
+        "missing_dim_clientfournisseur": 0,
+        "missing_dim_projet": 0,
+    }
+    rejected_records = []
 
     for _, row in df.iterrows():
         date_key = pd.to_datetime(row["Date"]).strftime("%Y-%m-%d")
         dept = row["Département"]
-        ids = (
-            maps["date"].get(date_key),
-            maps["departement"].get(dept),
-            maps["typetransaction"].get(row["TypeTransaction"]),
-            maps["typedepense"].get(row["TypeDépense"]),
-            maps["responsable"].get((row["Responsable"], dept)),
-            maps["clientfournisseur"].get(row["Client_Fournisseur"]),
-            maps["projet"].get(row["Projet"]),
-        )
+        dim_map = {
+            "missing_dim_date": maps["date"].get(date_key),
+            "missing_dim_departement": maps["departement"].get(dept),
+            "missing_dim_typetransaction": maps["typetransaction"].get(row["TypeTransaction"]),
+            "missing_dim_typedepense": maps["typedepense"].get(row["TypeDépense"]),
+            "missing_dim_responsable": maps["responsable"].get((row["Responsable"], dept)),
+            "missing_dim_clientfournisseur": maps["clientfournisseur"].get(row["Client_Fournisseur"]),
+            "missing_dim_projet": maps["projet"].get(row["Projet"]),
+        }
 
-        if None in ids:
-            skipped += 1
+        missing_reasons = [reason for reason, value in dim_map.items() if value is None]
+        if missing_reasons:
+            for reason in missing_reasons:
+                skipped_by_reason[reason] += 1
+            rejected = row.to_dict()
+            rejected["reject_reason"] = "|".join(missing_reasons)
+            rejected["reject_stage"] = "load_dimensions"
+            rejected_records.append(rejected)
             continue
 
+        ids = tuple(dim_map.values())
         rows.append(
             (
                 next_id,
@@ -599,10 +819,20 @@ def _load_transactions(cursor, df, maps, replace_existing, log) -> int:
             rows,
         )
 
-    if skipped:
-        log.append(f"⚠ {skipped} transaction(s) ignorée(s) (correspondance dimension manquante)")
+    skipped_total = int(len(rejected_records))
+    detail = ", ".join(f"{k}={v}" for k, v in skipped_by_reason.items())
+    log.append(f"ℹ Rejets dimensions: {detail}")
+    if skipped_total:
+        log.append(f"⚠ {skipped_total} transaction(s) ignorée(s) au chargement")
     log.append(f"✓ {len(rows)} transaction(s) insérée(s)")
-    return len(rows)
+
+    rejected_df = pd.DataFrame(rejected_records) if rejected_records else pd.DataFrame(columns=list(df.columns) + ["reject_reason", "reject_stage"])
+    return {
+        "rows_inserted": int(len(rows)),
+        "rows_skipped": skipped_total,
+        "skipped_by_reason": skipped_by_reason,
+        "rejected_rows": rejected_df,
+    }
 
 
 def run_generic_etl(file_path: str, replace_existing: bool = True) -> dict:
@@ -611,11 +841,12 @@ def run_generic_etl(file_path: str, replace_existing: bool = True) -> dict:
 
     try:
         df_raw = _read_file(path, log)
-        df_clean, clean_log = _clean_dataframe(df_raw)
+        df_clean, clean_log, clean_report, clean_rejected = _clean_dataframe(df_raw)
         log.extend(clean_log)
 
         out_path = path.parent / "donnees_nettoyees.csv"
-        df_clean.to_csv(out_path, index=False, encoding="utf-8-sig")
+        df_clean_export = df_clean.drop(columns=["_source_row"], errors="ignore")
+        df_clean_export.to_csv(out_path, index=False, encoding="utf-8-sig")
         log.append(f"✓ CSV nettoyé exporté : {out_path.name}")
 
         conn = _connect()
@@ -630,13 +861,59 @@ def run_generic_etl(file_path: str, replace_existing: bool = True) -> dict:
                     "clientfournisseur": _ensure_clientfournisseur(cursor, df_clean, log),
                     "projet": _ensure_projets(cursor, df_clean, log),
                 }
-                inserted = _load_transactions(cursor, df_clean, maps, replace_existing, log)
+                load_result = _load_transactions(cursor, df_clean, maps, replace_existing, log)
             conn.commit()
         finally:
             conn.close()
 
+        load_rejected = load_result.get("rejected_rows")
+        rejected_parts = []
+        if clean_rejected is not None and not clean_rejected.empty:
+            rejected_parts.append(clean_rejected)
+        if load_rejected is not None and not load_rejected.empty:
+            rejected_parts.append(load_rejected)
+
+        if rejected_parts:
+            rejected_df = pd.concat(rejected_parts, ignore_index=True, sort=False)
+        else:
+            rejected_df = pd.DataFrame(columns=list(df_raw.columns) + ["_source_row", "reject_reason", "reject_stage"])
+
+        if "_source_row" in rejected_df.columns:
+            rejected_df = rejected_df.sort_values(by="_source_row", kind="stable").reset_index(drop=True)
+
+        rejected_path = path.parent / REJECTED_ROWS_FILENAME
+        rejected_df.to_csv(rejected_path, index=False, encoding="utf-8-sig")
+        log.append(f"✓ Lignes rejetées exportées : {rejected_path.name} ({len(rejected_df)} ligne(s))")
+
+        rows_inserted = int(load_result.get("rows_inserted", 0))
+        rows_skipped_load = int(load_result.get("rows_skipped", 0))
+        total_rejected = (
+            int(clean_report.get("duplicates_removed", 0))
+            + int(clean_report.get("invalid_rows_removed", 0))
+            + rows_skipped_load
+        )
+        rejection_summary = {
+            "input_rows": int(clean_report.get("input_rows", len(df_raw))),
+            "duplicates_removed": int(clean_report.get("duplicates_removed", 0)),
+            "invalid_rows_removed": int(clean_report.get("invalid_rows_removed", 0)),
+            "invalid_by_reason": clean_report.get("invalid_by_reason", {}),
+            "rows_after_cleaning": int(clean_report.get("rows_after_cleaning", len(df_clean))),
+            "rows_skipped_during_load": rows_skipped_load,
+            "load_skipped_by_reason": load_result.get("skipped_by_reason", {}),
+            "rows_inserted": rows_inserted,
+            "total_rejected_rows": total_rejected,
+        }
+
+        log.append(
+            "ℹ Résumé rejets: "
+            f"doublons={rejection_summary['duplicates_removed']}, "
+            f"invalides={rejection_summary['invalid_rows_removed']}, "
+            f"chargement={rejection_summary['rows_skipped_during_load']}, "
+            f"insérées={rejection_summary['rows_inserted']}"
+        )
+
         before_rows = _json_safe_records(df_raw)
-        after_rows = _json_safe_records(df_clean)
+        after_rows = _json_safe_records(df_clean_export)
 
         return {
             "success": True,
@@ -645,19 +922,33 @@ def run_generic_etl(file_path: str, replace_existing: bool = True) -> dict:
             "after_rows": after_rows,
             "changed_rows": min(len(before_rows), len(after_rows)),
             "stats": {
-                "lignes": int(len(df_clean)),
-                "colonnes": int(len(df_clean.columns)),
-                "taux_correction": "100.0%",
-                "total": round(float(df_clean["Montant"].sum()), 2),
-                "solde": round(float(df_clean["Montant_Signe"].sum()), 2),
-                "revenus": round(float(df_clean.loc[df_clean["Montant_Signe"] > 0, "Montant_Signe"].sum()), 2),
-                "depenses": round(float(df_clean.loc[df_clean["Montant_Signe"] < 0, "Montant_Signe"].sum()), 2),
+                "lignes": int(len(df_clean_export)),
+                "colonnes": int(len(df_clean_export.columns)),
+                "nb_erreurs": int(total_rejected),
+                "taux_correction": f"{(rows_inserted / max(1, int(clean_report.get('input_rows', len(df_raw)))) * 100):.1f}%",
+                "total": round(float(df_clean_export["Montant"].sum()), 2),
+                "solde": round(float(df_clean_export["Montant_Signe"].sum()), 2),
+                "revenus": round(float(df_clean_export.loc[df_clean_export["Montant_Signe"] > 0, "Montant_Signe"].sum()), 2),
+                "depenses": round(float(df_clean_export.loc[df_clean_export["Montant_Signe"] < 0, "Montant_Signe"].sum()), 2),
             },
+            "rejections": rejection_summary,
             "db_result": {
                 "db_name": DB_CONFIG["database"],
                 "table_name": "transactions",
-                "rows_inserted": inserted,
+                "rows_inserted": rows_inserted,
+                "rows_skipped": rows_skipped_load,
+                "rows_rejected_total": total_rejected,
+                "skipped_by_reason": load_result.get("skipped_by_reason", {}),
                 "mode": "star_schema",
+            },
+            "artifacts": {
+                "cleaned_csv": str(out_path),
+                "rejected_rows_csv": str(rejected_path),
+            },
+            "column_mapping": {
+                "mapped_columns_count": int(clean_report.get("mapped_columns_count", 0)),
+                "mapped_columns": clean_report.get("mapped_columns", {}),
+                "defaulted_optional_columns": clean_report.get("defaulted_optional_columns", []),
             },
         }
     except Exception as e:

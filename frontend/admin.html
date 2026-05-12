@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administration — BusinessApp</title>
+    <title>Administration — Finova</title>
     <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192x192.png">
@@ -82,6 +82,64 @@
         .users-table tbody tr td select,
         .users-table tbody tr td button { cursor: pointer; }
         .users-table tbody tr td.email-cell { user-select: text; -webkit-user-select: text; }
+
+        .history-card { margin-top: 22px; }
+        .login-history-table td { font-size: 0.82rem; }
+        .login-history-table td, .login-history-table th { white-space: nowrap; }
+        .login-history-table td.reason-cell {
+            max-width: 340px;
+            white-space: normal;
+            line-height: 1.35;
+            color: var(--text-muted);
+        }
+        .report-history-table td { font-size: 0.83rem; }
+        .report-history-table td, .report-history-table th { white-space: nowrap; }
+        .format-badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 2px 9px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-soft);
+            color: var(--text);
+        }
+        .audit-log-table td { font-size: 0.82rem; }
+        .audit-log-table td, .audit-log-table th { white-space: nowrap; }
+        .audit-log-table td.details-cell {
+            max-width: 420px;
+            white-space: normal;
+            line-height: 1.35;
+            color: var(--text-muted);
+        }
+        .audit-log-table td.action-cell {
+            font-weight: 700;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border: 1px solid transparent;
+        }
+        .status-badge.success {
+            color: #065f46;
+            background: #d1fae5;
+            border-color: #6ee7b7;
+        }
+        .status-badge.failed {
+            color: #991b1b;
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
 
         /* ── User cell ── */
         .user-cell { display: flex; align-items: center; gap: 12px; }
@@ -223,7 +281,7 @@
 <div class="page-bg"><div class="bg-img"></div><div class="bg-veil"></div><div class="bg-grid"></div></div>
 
 <nav class="topbar">
-    <a class="brand" href="dash.html"><span class="brand-dot"></span>Finova</a>
+    <a class="brand" href="dash.html"><span class="brand-dot"></span><span class="brand-text">Finova</span></a>
     <div class="tnav nav-left">
         <a href="dash.html">Import de données</a>
         <a href="charts.html">Analyse</a>
@@ -333,6 +391,140 @@
         </div>
     </div>
 
+    <div class="main-card history-card">
+        <div class="card-header-bar">
+            <span class="cht">Historique des connexions</span>
+            <div class="search-row">
+                <span class="text-muted" style="margin-left:6px;"><i class="bi bi-search"></i></span>
+                <input class="search-input" type="text" id="loginHistorySearch" placeholder="Rechercher par email...">
+                <select class="filter-sel" id="loginHistoryStatus">
+                    <option value="">Tous les statuts</option>
+                    <option value="success">Succès</option>
+                    <option value="failed">Échec</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto">
+            <table class="users-table login-history-table" id="loginHistoryTable">
+                <thead>
+                    <tr>
+                        <th>Utilisateur</th>
+                        <th>Email</th>
+                        <th>Statut</th>
+                        <th>Type</th>
+                        <th>IP</th>
+                        <th>Date</th>
+                        <th>Raison</th>
+                    </tr>
+                </thead>
+                <tbody id="loginHistoryBody">
+                    <tr class="loading-row"><td colspan="7">Chargement...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <span id="loginHistoryInfo"></span>
+            <div class="page-btns" id="loginHistoryPageBtns"></div>
+        </div>
+    </div>
+
+    <div class="main-card history-card">
+        <div class="card-header-bar">
+            <span class="cht">Historique des rapports</span>
+            <div class="search-row">
+                <span class="text-muted" style="margin-left:6px;"><i class="bi bi-search"></i></span>
+                <input class="search-input" type="text" id="reportHistorySearch" placeholder="Rechercher rapport ou email...">
+                <select class="filter-sel" id="reportHistoryFormat">
+                    <option value="">Tous les formats</option>
+                    <option value="pdf">PDF</option>
+                    <option value="png">PNG</option>
+                    <option value="jpg">JPG</option>
+                    <option value="csv">CSV</option>
+                    <option value="docx">DOCX</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto">
+            <table class="users-table report-history-table" id="reportHistoryTable">
+                <thead>
+                    <tr>
+                        <th>Rapport</th>
+                        <th>Type</th>
+                        <th>Format</th>
+                        <th>Généré par</th>
+                        <th>Email</th>
+                        <th>Date de génération</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="reportHistoryBody">
+                    <tr class="loading-row"><td colspan="7">Chargement...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <span id="reportHistoryInfo"></span>
+            <div class="page-btns" id="reportHistoryPageBtns"></div>
+        </div>
+    </div>
+
+    <div class="main-card history-card">
+        <div class="card-header-bar">
+            <span class="cht">Journal d'audit</span>
+            <div class="search-row">
+                <span class="text-muted" style="margin-left:6px;"><i class="bi bi-search"></i></span>
+                <input class="search-input" type="text" id="auditLogSearch" placeholder="Rechercher (nom, email, action, IP)...">
+                <select class="filter-sel" id="auditLogAction">
+                    <option value="">Toutes les actions</option>
+                    <option value="connexion">Connexion</option>
+                    <option value="creation_utilisateur">Création utilisateur</option>
+                    <option value="modification_utilisateur">Modification utilisateur</option>
+                    <option value="suppression_utilisateur">Suppression utilisateur</option>
+                    <option value="changement_role">Changement de rôle</option>
+                    <option value="import_donnees">Import de données</option>
+                    <option value="generation_rapport">Génération de rapport</option>
+                    <option value="export_rapport">Export de rapport</option>
+                    <option value="api_access">Accès API</option>
+                    <option value="erreur_systeme">Erreur système</option>
+                </select>
+                <select class="filter-sel" id="auditLogStatus">
+                    <option value="">Tous les statuts</option>
+                    <option value="success">Succès</option>
+                    <option value="failed">Échec</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto">
+            <table class="users-table audit-log-table" id="auditLogTable">
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Ressource</th>
+                        <th>Utilisateur</th>
+                        <th>Email</th>
+                        <th>Statut</th>
+                        <th>Adresse IP</th>
+                        <th>Date</th>
+                        <th>Détails</th>
+                    </tr>
+                </thead>
+                <tbody id="auditLogBody">
+                    <tr class="loading-row"><td colspan="8">Chargement...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <span id="auditLogInfo"></span>
+            <div class="page-btns" id="auditLogPageBtns"></div>
+        </div>
+    </div>
+
 </div>
 </div>
 
@@ -416,28 +608,83 @@ let sortField   = 'date';
 let sortDir     = -1; // -1 = desc, 1 = asc
 let editUserId  = null;
 let deleteTarget= null;
+let loginHistoryPage = 1;
+let loginHistoryTotal = 0;
+const LOGIN_HISTORY_LIMIT = 10;
+let reportHistoryPage = 1;
+let reportHistoryTotal = 0;
+const REPORT_HISTORY_LIMIT = 10;
+let auditLogPage = 1;
+let auditLogTotal = 0;
+const AUDIT_LOG_LIMIT = 10;
 
 /* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
 (async function init() {
+    const activeUser = window.UICore?.ensureValidSession?.({ redirectTo: 'index.html' });
+    if (!activeUser) return;
     window.UICore?.bootstrapAuthenticatedPage?.({
         requireAuth: true,
         refreshProfile: true
     });
     await loadUsers();
+    await loadLoginHistory(1);
+    await loadReportHistory(1);
+    await loadAuditLogs(1);
+
+    const lhSearch = document.getElementById('loginHistorySearch');
+    const lhStatus = document.getElementById('loginHistoryStatus');
+    if (lhSearch) {
+        lhSearch.addEventListener('input', () => loadLoginHistory(1));
+    }
+    if (lhStatus) {
+        lhStatus.addEventListener('change', () => loadLoginHistory(1));
+    }
+
+    const rhSearch = document.getElementById('reportHistorySearch');
+    const rhFormat = document.getElementById('reportHistoryFormat');
+    if (rhSearch) {
+        rhSearch.addEventListener('input', () => loadReportHistory(1));
+    }
+    if (rhFormat) {
+        rhFormat.addEventListener('change', () => loadReportHistory(1));
+    }
+
+    const auditSearch = document.getElementById('auditLogSearch');
+    const auditAction = document.getElementById('auditLogAction');
+    const auditStatus = document.getElementById('auditLogStatus');
+    if (auditSearch) {
+        auditSearch.addEventListener('input', () => loadAuditLogs(1));
+    }
+    if (auditAction) {
+        auditAction.addEventListener('change', () => loadAuditLogs(1));
+    }
+    if (auditStatus) {
+        auditStatus.addEventListener('change', () => loadAuditLogs(1));
+    }
 })();
 
 /* ═══════════════════════════════════════════
    API HELPERS
 ═══════════════════════════════════════════ */
 function getToken() {
-    try { return JSON.parse(localStorage.getItem('user') || '{}').id || ''; }
-    catch(e) { return ''; }
+    const user = window.UICore?.ensureValidSession?.({
+        redirect: false,
+        migrate: true
+    }) || window.UICore?.getUser?.({ migrate: true }) || null;
+    if (!user) return '';
+    return window.UICore?.getAuthToken?.(user) || user.token || '';
 }
 
 function authHeaders(json = false) {
-    const h = { 'Authorization': `Bearer ${getToken()}` };
+    const user = window.UICore?.getUser?.({ migrate: true }) || null;
+    if (window.UICore?.authHeaders) {
+        return window.UICore.authHeaders({ json, user });
+    }
+    const h = {};
+    const token = getToken();
+    if (token) h.Authorization = `Bearer ${token}`;
     if (json) h['Content-Type'] = 'application/json';
     return h;
 }
@@ -452,12 +699,396 @@ async function loadUsers() {
         const res  = await fetch('/api/users', { headers: authHeaders() });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         allUsers = await res.json();
+        allUsers = (Array.isArray(allUsers) ? allUsers : []).map((u) => ({
+            ...u,
+            role: String(u?.role || '').toLowerCase() === 'admin' ? 'admin' : 'user'
+        }));
     } catch(e) {
         allUsers = [];
         showToast('Impossible de charger les utilisateurs', true, 'bi-x-circle-fill');
     }
     updateStats();
     applyFilters();
+}
+
+async function loadLoginHistory(page = 1) {
+    loginHistoryPage = Math.max(1, Number(page) || 1);
+    const body = document.getElementById('loginHistoryBody');
+    if (body) {
+        body.innerHTML = '<tr class="loading-row"><td colspan="7">Chargement...</td></tr>';
+    }
+
+    const q = encodeURIComponent((document.getElementById('loginHistorySearch')?.value || '').trim());
+    const status = encodeURIComponent((document.getElementById('loginHistoryStatus')?.value || '').trim());
+    const url = `/api/admin/login-history?page=${loginHistoryPage}&limit=${LOGIN_HISTORY_LIMIT}&search=${q}&status=${status}`;
+
+    try {
+        const res = await fetch(url, { headers: authHeaders() });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || `HTTP ${res.status}`);
+
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        loginHistoryTotal = Number(payload.total || 0);
+        renderLoginHistory(items);
+    } catch (e) {
+        loginHistoryTotal = 0;
+        if (body) {
+            body.innerHTML = `<tr><td colspan="7">
+                <div class="empty-state">
+                    <div class="es-icon"><i class="bi bi-exclamation-circle"></i></div>
+                    <p>Impossible de charger l'historique des connexions</p>
+                </div>
+            </td></tr>`;
+        }
+        const info = document.getElementById('loginHistoryInfo');
+        const btns = document.getElementById('loginHistoryPageBtns');
+        if (info) info.textContent = '0 résultat';
+        if (btns) btns.innerHTML = '';
+        showToast(e.message || 'Erreur chargement historique', true, 'bi-x-circle-fill');
+    }
+}
+
+function renderLoginHistory(items) {
+    const body = document.getElementById('loginHistoryBody');
+    const info = document.getElementById('loginHistoryInfo');
+    const btns = document.getElementById('loginHistoryPageBtns');
+    if (!body || !info || !btns) return;
+
+    if (!items.length) {
+        body.innerHTML = `<tr><td colspan="7">
+            <div class="empty-state">
+                <div class="es-icon"><i class="bi bi-clock-history"></i></div>
+                <p>Aucun historique de connexion trouvé</p>
+            </div>
+        </td></tr>`;
+        info.textContent = '0 résultat';
+        btns.innerHTML = '';
+        return;
+    }
+
+    body.innerHTML = items.map(item => {
+        const firstname = item.firstname || '';
+        const lastname = item.lastname || '';
+        const fullName = `${firstname} ${lastname}`.trim() || 'Utilisateur inconnu';
+        const status = (item.login_status || '').toLowerCase() === 'success' ? 'success' : 'failed';
+        const statusLabel = status === 'success' ? 'Succès' : 'Échec';
+        const ip = item.ip_address || '-';
+        const reason = item.failure_reason || '-';
+        const loginType = item.login_type || 'email';
+        const when = formatDateTime(item.login_date);
+
+        return `
+        <tr>
+            <td>${esc(fullName)}</td>
+            <td class="email-cell">${esc(item.email || '-')}</td>
+            <td><span class="status-badge ${status}">${statusLabel}</span></td>
+            <td>${esc(loginType)}</td>
+            <td>${esc(ip)}</td>
+            <td>${esc(when)}</td>
+            <td class="reason-cell">${esc(reason)}</td>
+        </tr>`;
+    }).join('');
+
+    renderLoginHistoryPagination();
+}
+
+function renderLoginHistoryPagination() {
+    const info = document.getElementById('loginHistoryInfo');
+    const btns = document.getElementById('loginHistoryPageBtns');
+    if (!info || !btns) return;
+
+    const total = loginHistoryTotal;
+    const pages = Math.max(1, Math.ceil(total / LOGIN_HISTORY_LIMIT));
+    const start = total ? ((loginHistoryPage - 1) * LOGIN_HISTORY_LIMIT + 1) : 0;
+    const end = total ? Math.min(loginHistoryPage * LOGIN_HISTORY_LIMIT, total) : 0;
+
+    info.textContent = total ? `${start}-${end} sur ${total} connexions` : '0 résultat';
+
+    let html = `<button class="page-btn" onclick="goLoginHistoryPage(${loginHistoryPage - 1})" ${loginHistoryPage <= 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>`;
+    for (let i = 1; i <= pages; i++) {
+        html += `<button class="page-btn ${i === loginHistoryPage ? 'active' : ''}" onclick="goLoginHistoryPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goLoginHistoryPage(${loginHistoryPage + 1})" ${loginHistoryPage >= pages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>`;
+    btns.innerHTML = html;
+}
+
+function goLoginHistoryPage(page) {
+    const pages = Math.max(1, Math.ceil(loginHistoryTotal / LOGIN_HISTORY_LIMIT));
+    if (page < 1 || page > pages) return;
+    loadLoginHistory(page);
+}
+
+async function loadReportHistory(page = 1) {
+    reportHistoryPage = Math.max(1, Number(page) || 1);
+    const body = document.getElementById('reportHistoryBody');
+    if (body) {
+        body.innerHTML = '<tr class="loading-row"><td colspan="7">Chargement...</td></tr>';
+    }
+
+    const q = encodeURIComponent((document.getElementById('reportHistorySearch')?.value || '').trim());
+    const format = encodeURIComponent((document.getElementById('reportHistoryFormat')?.value || '').trim());
+    const url = `/api/admin/reports-history?page=${reportHistoryPage}&limit=${REPORT_HISTORY_LIMIT}&search=${q}&format=${format}`;
+
+    try {
+        const res = await fetch(url, { headers: authHeaders() });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || `HTTP ${res.status}`);
+
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        reportHistoryTotal = Number(payload.total || 0);
+        renderReportHistory(items);
+    } catch (e) {
+        reportHistoryTotal = 0;
+        if (body) {
+            body.innerHTML = `<tr><td colspan="7">
+                <div class="empty-state">
+                    <div class="es-icon"><i class="bi bi-exclamation-circle"></i></div>
+                    <p>Impossible de charger l'historique des rapports</p>
+                </div>
+            </td></tr>`;
+        }
+        const info = document.getElementById('reportHistoryInfo');
+        const btns = document.getElementById('reportHistoryPageBtns');
+        if (info) info.textContent = '0 résultat';
+        if (btns) btns.innerHTML = '';
+        showToast(e.message || 'Erreur chargement historique des rapports', true, 'bi-x-circle-fill');
+    }
+}
+
+function renderReportHistory(items) {
+    const body = document.getElementById('reportHistoryBody');
+    const info = document.getElementById('reportHistoryInfo');
+    const btns = document.getElementById('reportHistoryPageBtns');
+    if (!body || !info || !btns) return;
+
+    if (!items.length) {
+        body.innerHTML = `<tr><td colspan="7">
+            <div class="empty-state">
+                <div class="es-icon"><i class="bi bi-file-earmark-text"></i></div>
+                <p>Aucun rapport trouvé</p>
+            </div>
+        </td></tr>`;
+        info.textContent = '0 résultat';
+        btns.innerHTML = '';
+        return;
+    }
+
+    body.innerHTML = items.map((item) => {
+        const fullname = `${item.firstname || ''} ${item.lastname || ''}`.trim() || 'Utilisateur inconnu';
+        const format = String(item.format || '-').toUpperCase();
+        const date = formatDateTime(item.date_generation);
+        const name = item.nom_rapport || `Rapport #${item.id_rapport || ''}`;
+        const type = item.type_rapport || 'financier';
+        const id = Number(item.id_rapport || 0);
+
+        return `
+        <tr>
+            <td>${esc(name)}</td>
+            <td>${esc(type)}</td>
+            <td><span class="format-badge">${esc(format)}</span></td>
+            <td>${esc(fullname)}</td>
+            <td class="email-cell">${esc(item.email || '-')}</td>
+            <td>${esc(date)}</td>
+            <td>
+                <button class="btn btn-outline-secondary btn-sm" style="border-radius:8px" onclick="downloadReport(${id})">
+                    <i class="bi bi-download me-1"></i>Télécharger
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    renderReportHistoryPagination();
+}
+
+function renderReportHistoryPagination() {
+    const info = document.getElementById('reportHistoryInfo');
+    const btns = document.getElementById('reportHistoryPageBtns');
+    if (!info || !btns) return;
+
+    const total = reportHistoryTotal;
+    const pages = Math.max(1, Math.ceil(total / REPORT_HISTORY_LIMIT));
+    const start = total ? ((reportHistoryPage - 1) * REPORT_HISTORY_LIMIT + 1) : 0;
+    const end = total ? Math.min(reportHistoryPage * REPORT_HISTORY_LIMIT, total) : 0;
+
+    info.textContent = total ? `${start}-${end} sur ${total} rapports` : '0 résultat';
+
+    let html = `<button class="page-btn" onclick="goReportHistoryPage(${reportHistoryPage - 1})" ${reportHistoryPage <= 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>`;
+    for (let i = 1; i <= pages; i++) {
+        html += `<button class="page-btn ${i === reportHistoryPage ? 'active' : ''}" onclick="goReportHistoryPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goReportHistoryPage(${reportHistoryPage + 1})" ${reportHistoryPage >= pages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>`;
+    btns.innerHTML = html;
+}
+
+function goReportHistoryPage(page) {
+    const pages = Math.max(1, Math.ceil(reportHistoryTotal / REPORT_HISTORY_LIMIT));
+    if (page < 1 || page > pages) return;
+    loadReportHistory(page);
+}
+
+async function downloadReport(id) {
+    if (!id) return;
+    try {
+        const res = await fetch(`/api/admin/reports/${id}/download`, {
+            method: 'GET',
+            headers: authHeaders()
+        });
+        if (!res.ok) {
+            let err = {};
+            try { err = await res.json(); } catch (_) { err = {}; }
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const match = cd.match(/filename=\"?([^\";]+)\"?/i);
+        const filename = (match && match[1]) ? match[1] : `rapport_${id}`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('Rapport téléchargé.', false, 'bi-download');
+        await loadAuditLogs(1);
+    } catch (e) {
+        showToast(e.message || 'Téléchargement impossible', true, 'bi-x-circle-fill');
+    }
+}
+
+async function loadAuditLogs(page = 1) {
+    auditLogPage = Math.max(1, Number(page) || 1);
+    const body = document.getElementById('auditLogBody');
+    if (body) {
+        body.innerHTML = '<tr class="loading-row"><td colspan="8">Chargement...</td></tr>';
+    }
+
+    const q = encodeURIComponent((document.getElementById('auditLogSearch')?.value || '').trim());
+    const action = encodeURIComponent((document.getElementById('auditLogAction')?.value || '').trim());
+    const status = encodeURIComponent((document.getElementById('auditLogStatus')?.value || '').trim());
+    const url = `/api/admin/audit-logs?page=${auditLogPage}&limit=${AUDIT_LOG_LIMIT}&search=${q}&action=${action}&status=${status}`;
+
+    try {
+        const res = await fetch(url, { headers: authHeaders() });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || `HTTP ${res.status}`);
+
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        auditLogTotal = Number(payload.total || 0);
+        renderAuditLogs(items);
+    } catch (e) {
+        auditLogTotal = 0;
+        if (body) {
+            body.innerHTML = `<tr><td colspan="8">
+                <div class="empty-state">
+                    <div class="es-icon"><i class="bi bi-exclamation-circle"></i></div>
+                    <p>Impossible de charger le journal d'audit</p>
+                </div>
+            </td></tr>`;
+        }
+        const info = document.getElementById('auditLogInfo');
+        const btns = document.getElementById('auditLogPageBtns');
+        if (info) info.textContent = '0 résultat';
+        if (btns) btns.innerHTML = '';
+        showToast(e.message || "Erreur chargement journal d'audit", true, 'bi-x-circle-fill');
+    }
+}
+
+function renderAuditLogs(items) {
+    const body = document.getElementById('auditLogBody');
+    const info = document.getElementById('auditLogInfo');
+    const btns = document.getElementById('auditLogPageBtns');
+    if (!body || !info || !btns) return;
+
+    if (!items.length) {
+        body.innerHTML = `<tr><td colspan="8">
+            <div class="empty-state">
+                <div class="es-icon"><i class="bi bi-journal-text"></i></div>
+                <p>Aucune action enregistrée</p>
+            </div>
+        </td></tr>`;
+        info.textContent = '0 résultat';
+        btns.innerHTML = '';
+        return;
+    }
+
+    body.innerHTML = items.map(item => {
+        const firstname = item.firstname || '';
+        const lastname = item.lastname || '';
+        const fullName = `${firstname} ${lastname}`.trim() || 'Utilisateur inconnu';
+        const actionLabel = formatAuditAction(item.action);
+        const status = formatAuditStatus(item.statut);
+        const ip = item.ip_address || '-';
+        const details = item.details || '-';
+        const resource = item.ressource || '-';
+        const when = formatDateTime(item.date_action);
+
+        return `
+        <tr>
+            <td class="action-cell">${esc(actionLabel)}</td>
+            <td>${esc(resource)}</td>
+            <td>${esc(fullName)}</td>
+            <td class="email-cell">${esc(item.email || '-')}</td>
+            <td><span class="status-badge ${status.className}">${status.label}</span></td>
+            <td>${esc(ip)}</td>
+            <td>${esc(when)}</td>
+            <td class="details-cell">${esc(details)}</td>
+        </tr>`;
+    }).join('');
+
+    renderAuditLogsPagination();
+}
+
+function renderAuditLogsPagination() {
+    const info = document.getElementById('auditLogInfo');
+    const btns = document.getElementById('auditLogPageBtns');
+    if (!info || !btns) return;
+
+    const total = auditLogTotal;
+    const pages = Math.max(1, Math.ceil(total / AUDIT_LOG_LIMIT));
+    const start = total ? ((auditLogPage - 1) * AUDIT_LOG_LIMIT + 1) : 0;
+    const end = total ? Math.min(auditLogPage * AUDIT_LOG_LIMIT, total) : 0;
+
+    info.textContent = total ? `${start}-${end} sur ${total} actions` : '0 résultat';
+
+    let html = `<button class="page-btn" onclick="goAuditLogPage(${auditLogPage - 1})" ${auditLogPage <= 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>`;
+    for (let i = 1; i <= pages; i++) {
+        html += `<button class="page-btn ${i === auditLogPage ? 'active' : ''}" onclick="goAuditLogPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goAuditLogPage(${auditLogPage + 1})" ${auditLogPage >= pages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>`;
+    btns.innerHTML = html;
+}
+
+function goAuditLogPage(page) {
+    const pages = Math.max(1, Math.ceil(auditLogTotal / AUDIT_LOG_LIMIT));
+    if (page < 1 || page > pages) return;
+    loadAuditLogs(page);
+}
+
+function formatAuditAction(action) {
+    const key = String(action || '').trim().toLowerCase();
+    const labels = {
+        connexion: 'Connexion',
+        creation_utilisateur: 'Création utilisateur',
+        modification_utilisateur: 'Modification utilisateur',
+        suppression_utilisateur: 'Suppression utilisateur',
+        changement_role: 'Changement de rôle',
+        import_donnees: 'Import de données',
+        generation_rapport: 'Génération de rapport',
+        export_rapport: 'Export de rapport',
+        api_access: 'Accès API',
+        erreur_systeme: 'Erreur système'
+    };
+    return labels[key] || (key || 'Action');
+}
+
+function formatAuditStatus(status) {
+    const raw = String(status || '').trim().toLowerCase();
+    if (raw === 'failed' || raw === 'echec' || raw === 'error') {
+        return { label: 'Échec', className: 'failed' };
+    }
+    return { label: 'Succès', className: 'success' };
 }
 
 /* ═══════════════════════════════════════════
@@ -619,7 +1250,12 @@ async function changeRole(id, sel) {
         sel.dataset.original = newRole;
         sel.className = 'role-select ' + newRole;
         updateStats();
-        showToast(`Rôle mis à jour : ${newRole === 'admin' ? 'Administrateur' : 'Utilisateur'}`, false, 'bi-check-circle-fill');
+        const roleLabels = {
+            admin: 'Administrateur',
+            user: 'Utilisateur'
+        };
+        showToast(`Rôle mis à jour : ${roleLabels[newRole] || newRole}`, false, 'bi-check-circle-fill');
+        await loadAuditLogs(1);
     } catch(e) {
         // Revert on error
         sel.value     = oldRole;
@@ -719,6 +1355,7 @@ async function saveUser() {
             applyFilters();
             closeUserModal();
             showToast(`${first} ${last} ajouté avec succès`, false, 'bi-check-circle-fill');
+            await loadAuditLogs(1);
         } else {
             /* ── UPDATE infos ── */
             const r1  = await fetch(`/api/profile/${editUserId}`, {
@@ -757,6 +1394,7 @@ async function saveUser() {
             applyFilters();
             closeUserModal();
             showToast(`${first} ${last} mis à jour`, false, 'bi-check-circle-fill');
+            await loadAuditLogs(1);
         }
     } catch(e) {
         showAlert('alertUser', 'danger', e.message);
@@ -814,16 +1452,37 @@ async function confirmDelete() {
     const name = `${deleteTarget.firstname} ${deleteTarget.lastname}`;
     closeDeleteModal();
     showToast(`${name} supprimé`, false, 'bi-trash3-fill');
+    await loadAuditLogs(1);
 }
 
 /* ═══════════════════════════════════════════
    EXPORT CSV  →  GET /api/users/export
 ═══════════════════════════════════════════ */
-function exportCSV() {
-    const a = document.createElement('a');
-    a.href  = '/api/users/export';
-    a.click();
-    showToast('Export CSV en cours…', false, 'bi-download');
+async function exportCSV() {
+    try {
+        const res = await fetch('/api/users/export', {
+            method: 'GET',
+            headers: authHeaders()
+        });
+        if (!res.ok) {
+            let err = {};
+            try { err = await res.json(); } catch (_) { err = {}; }
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users_${Date.now()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('Export CSV en cours…', false, 'bi-download');
+        setTimeout(() => loadAuditLogs(1), 600);
+    } catch (e) {
+        showToast(e.message || 'Export CSV impossible', true, 'bi-x-circle-fill');
+    }
 }
 
 /* ═══════════════════════════════════════════
@@ -838,6 +1497,20 @@ function formatDate(d) {
     const dt = new Date(d.replace(' ', 'T'));
     if (isNaN(dt)) return d;
     return dt.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function formatDateTime(d) {
+    if (!d) return '-';
+    const src = String(d).replace(' ', 'T');
+    const dt = new Date(src);
+    if (isNaN(dt)) return String(d);
+    return dt.toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
 function markInvalid(id) { document.getElementById(id).classList.add('is-invalid'); }
