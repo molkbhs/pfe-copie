@@ -73,6 +73,7 @@
 
       const response = await fetch(CLASSIC_ENDPOINT, {
         method: 'POST',
+        cache: 'no-store',
         headers: resolveAuthHeaders(true),
         body: JSON.stringify(payload),
       });
@@ -108,6 +109,7 @@
     try {
       const response = await fetch(AI_ENDPOINT, {
         method: 'POST',
+        cache: 'no-store',
         headers: resolveAuthHeaders(true),
         body: JSON.stringify(payload),
       });

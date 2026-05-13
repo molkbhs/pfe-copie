@@ -886,6 +886,7 @@ async function fetchHistory() {
         try {
             const res = await fetch('/api/etl/upload', {
                 method: 'POST',
+                cache: 'no-store',
                 headers: authHeaders(),
                 body: formData
             });
@@ -945,6 +946,7 @@ async function fetchHistory() {
         try {
             const res = await fetch('/api/etl/process', {
                 method: 'POST',
+                cache: 'no-store',
                 headers: authHeaders(true),
                 body: JSON.stringify({ filename: etlFilename })
             });
@@ -983,9 +985,15 @@ async function fetchHistory() {
             statsContainer.classList.remove('d-none');
             const insertedRows = Number(data.db_result?.rows_inserted || 0);
             window.lastSuccessfulImportId = data.import_id || null;
+            try {
+                const refreshStamp = String(Date.now());
+                localStorage.setItem('finova_analytics_force_refresh', refreshStamp);
+                sessionStorage.setItem('finova_analytics_force_refresh', refreshStamp);
+            } catch (_) {}
             if (insertedRows > 0) {
                 showToast(`Données nettoyées et enregistrées (${insertedRows} transactions chargées).`, 'success');
                 if (data.import_id) showToast(`Import #${data.import_id} enregistre.`, 'success');
+                showToast('Données Analytics mises à jour. Ouvrez la page Analyse ou Assistance pour rafraîchir.', 'info');
             } else {
                 showToast('Traitement terminé mais aucune transaction n’a été chargée. Vérifiez le fichier source.', 'warning');
             }

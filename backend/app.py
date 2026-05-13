@@ -849,11 +849,15 @@ def ensure_historique_imports_schema(cur):
 
 def save_import_history(user_id, filename, stats=None, log=None, cleaned_data=None, success=True):
     stats, log, cleaned_data = stats or {}, log or [], cleaned_data or []
-    nb_lignes   = int(stats.get("lignes", 0) or 0)
+    cleaned_count = len(cleaned_data) if isinstance(cleaned_data, list) else 0
+    nb_lignes   = int(stats.get("lignes", cleaned_count) or 0)
     nb_erreurs  = int(stats.get("nb_erreurs", 0) or 0)
     departement = stats.get("departement")
     importe_par = get_user_display_name(user_id) if user_id else None
     statut      = "succes" if success else "echec"
+
+    if success and (nb_lignes <= 0 or cleaned_count <= 0):
+        raise ValueError("Import invalide: aucune donnée nettoyée exploitable à sauvegarder.")
 
     details_json = json.dumps({"compressed": True, "format": "gzip+base64+json",
                                "content": compress_payload(log)}, ensure_ascii=False)
@@ -1084,7 +1088,7 @@ def _normalize_import_row(row, idx=1):
 def get_last_successful_import(user_id):
     return run_query(
         """
-        SELECT id, user_id, nom_fichier, date_import, nb_lignes, statut, data
+        SELECT id, user_id, nom_fichier, date_import, nb_lignes, statut, data, CHAR_LENGTH(data) AS data_length
         FROM historique_imports
         WHERE user_id=%s
           AND LOWER(COALESCE(statut, '')) IN ('succes', 'success')
@@ -1098,25 +1102,83 @@ def get_last_successful_import(user_id):
     )
 
 
+def get_active_user_dataset(user_id):
+    if not user_id:
+        return {
+            "success": False,
+            "rows": [],
+            "source": "historique_imports",
+            "message": "Utilisateur non authentifié.",
+        }
+
+    imp = get_last_successful_import(user_id)
+    if not imp:
+        return {
+            "success": False,
+            "rows": [],
+            "source": "historique_imports",
+            "message": "Aucun import réussi avec données non vides pour cet utilisateur.",
+        }
+
+    raw_rows = decode_import_rows(imp.get("data"))
+    if not raw_rows:
+        return {
+            "success": False,
+            "rows": [],
+            "source": "historique_imports",
+            "import_id": imp.get("id"),
+            "filename": imp.get("nom_fichier"),
+            "date_import": imp.get("date_import"),
+            "message": "Import trouvé mais données impossibles à décoder.",
+        }
+
+    rows = []
+    for i, row in enumerate(raw_rows, start=1):
+        if not isinstance(row, dict):
+            continue
+        try:
+            rows.append(normalize_import_row(row, idx=i))
+        except Exception:
+            continue
+
+    if not rows:
+        return {
+            "success": False,
+            "rows": [],
+            "source": "historique_imports",
+            "import_id": imp.get("id"),
+            "filename": imp.get("nom_fichier"),
+            "date_import": imp.get("date_import"),
+            "message": "Import trouvé mais aucune ligne exploitable après normalisation.",
+        }
+
+    return {
+        "success": True,
+        "rows": rows,
+        "import_id": imp.get("id"),
+        "filename": imp.get("nom_fichier"),
+        "date_import": imp.get("date_import"),
+        "source": "historique_imports",
+    }
+
+
 def _get_last_successful_import(user_id):
     return get_last_successful_import(user_id)
 
 
 def _get_latest_import_dataset(user_id):
-    imp = get_last_successful_import(user_id)
-    if not imp:
+    dataset = get_active_user_dataset(user_id)
+    if not dataset.get("success"):
         return None, []
 
-    raw_rows = decode_import_rows(imp.get("data"))
-    if not raw_rows:
-        return imp, []
-
-    normalized = []
-    for i, row in enumerate(raw_rows, start=1):
-        if not isinstance(row, dict):
-            continue
-        normalized.append(normalize_import_row(row, idx=i))
-    return imp, normalized
+    imp = {
+        "id": dataset.get("import_id"),
+        "nom_fichier": dataset.get("filename"),
+        "date_import": dataset.get("date_import"),
+        "nb_lignes": len(dataset.get("rows") or []),
+        "statut": "succes",
+    }
+    return imp, dataset.get("rows") or []
 
 
 def _build_kpis_from_rows(rows):
@@ -2325,6 +2387,22 @@ def etl_process():
         stats       = safe(result.get("stats", {}))
         log         = safe(result.get("log", []))
         after_rows  = safe(result.get("after_rows", []))
+        nb_lignes = int((stats or {}).get("lignes", len(after_rows)) or 0)
+
+        if nb_lignes <= 0 or not after_rows:
+            msg = "Import invalide: données nettoyées vides. Veuillez vérifier le fichier source."
+            try:
+                save_import_history(user_id, filename, {"lignes": 0, "nb_erreurs": 1}, log + [msg], [], False)
+            except Exception:
+                pass
+            log_audit(
+                user_id,
+                "import_donnees",
+                f"etl_file:{filename}",
+                "failed",
+                {"error": msg},
+            )
+            return jsonify({"success": False, "error": msg, "log": log}), 400
 
         try:
             import_id = save_import_history(user_id, filename, stats, log, after_rows, True)
@@ -2787,19 +2865,23 @@ def dashboard_summary():
         return jsonify({"success": False, "error": "Auth requis"}), 401
 
     try:
-        source = "transactions_sql"
-        summary = _query_dashboard_summary_sql()
+        dataset = get_active_user_dataset(user_id)
+        if not dataset.get("success"):
+            elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
+            log_audit(
+                user_id,
+                "api_access",
+                "dashboard_summary",
+                "failed",
+                {"response_ms": elapsed_ms, "reason": dataset.get("message") or "Aucun import disponible"},
+            )
+            return _no_import_response()
 
-        if not summary or int(summary.get("tx_count") or 0) == 0:
-            imp, rows = _get_latest_import_dataset(user_id)
-            if not imp or not rows:
-                elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
-                log_audit(user_id, "api_access", "dashboard_summary", "failed", {"response_ms": elapsed_ms, "reason": "Aucun import disponible"})
-                return _no_import_response()
-            summary = _build_dashboard_summary_from_rows(rows)
-            summary["import_id"] = imp.get("id")
-            summary["filename"] = imp.get("nom_fichier")
-            source = "historique_imports"
+        rows = dataset.get("rows") or []
+        summary = _build_dashboard_summary_from_rows(rows)
+        summary["import_id"] = dataset.get("import_id")
+        summary["filename"] = dataset.get("filename")
+        source = "historique_imports"
 
         elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
         payload = {
@@ -2842,28 +2924,33 @@ def analytics_data():
     user_id = get_current_user()
     if not user_id:
         return jsonify({"success": False, "error": "Auth requis"}), 401
-    imp, rows = _get_latest_import_dataset(user_id)
-    if not imp or not rows:
-        log_audit(user_id, "api_access", "analytics_data", "failed", "Aucun import disponible")
+
+    dataset = get_active_user_dataset(user_id)
+    rows = dataset.get("rows") or []
+    if not dataset.get("success") or not rows:
+        log_audit(user_id, "api_access", "analytics_data", "failed", dataset.get("message") or "Aucun import disponible")
         return _no_import_response()
 
-    log_audit(user_id, "api_access", "analytics_data", "success", {"import_id": imp["id"], "rows": len(rows)})
+    log_audit(user_id, "api_access", "analytics_data", "success", {"import_id": dataset.get("import_id"), "rows": len(rows)})
     return jsonify({
         "success": True,
         "analytics_ready": True,
-        "message": "",
-        "import_id": imp["id"],
-        "filename": imp.get("nom_fichier"),
-        "status": imp.get("statut"),
-        "imported_at": imp.get("date_import").isoformat() if imp.get("date_import") else None,
+        "message": "Données importées chargées avec succès",
+        "import_id": dataset.get("import_id"),
+        "filename": dataset.get("filename"),
+        "status": "succes",
+        "imported_at": dataset.get("date_import").isoformat() if dataset.get("date_import") else None,
         "import": {
-            "id": imp["id"],
-            "filename": imp.get("nom_fichier"),
-            "status": imp.get("statut"),
-            "imported_at": imp.get("date_import").isoformat() if imp.get("date_import") else None,
-            "rows_count": imp.get("nb_lignes"),
+            "id": dataset.get("import_id"),
+            "filename": dataset.get("filename"),
+            "status": "succes",
+            "imported_at": dataset.get("date_import").isoformat() if dataset.get("date_import") else None,
+            "rows_count": len(rows),
         },
+        "count": len(rows),
         "total": len(rows),
+        "source": "historique_imports",
+        "rows": make_json_safe(rows),
         "data": make_json_safe(rows),
     })
 
@@ -2874,8 +2961,9 @@ def kpi_refresh():
     user_id = get_current_user()
     if not user_id:
         return jsonify({"error": "Auth requis"}), 401
-    imp, rows = _get_latest_import_dataset(user_id)
-    if not imp or not rows:
+    dataset = get_active_user_dataset(user_id)
+    rows = dataset.get("rows") or []
+    if not dataset.get("success") or not rows:
         log_audit(user_id, "generation_rapport", "analytics_kpi_refresh", "failed", "Aucun import disponible")
         return _no_import_response()
 
@@ -2885,14 +2973,67 @@ def kpi_refresh():
         "generation_rapport",
         "analytics_kpi_refresh",
         "success",
-        {"import_id": imp["id"], "kpi_count": len(kpis)},
+        {"import_id": dataset.get("import_id"), "kpi_count": len(kpis)},
     )
     return jsonify({
         "success": True,
-        "import_id": imp["id"],
+        "import_id": dataset.get("import_id"),
         "inserted": len(kpis),
         "message": "KPI recalcules a partir du dernier import",
     })
+
+
+@app.route("/api/analytics/debug-import", methods=["GET"])
+@jwt_required
+def debug_import():
+    user_id = get_current_user()
+    if not user_id:
+        return jsonify({"success": False, "error": "Auth requis"}), 401
+
+    latest_for_user = run_query(
+        """
+        SELECT id, user_id, nom_fichier, statut, nb_lignes, date_import, CHAR_LENGTH(data) AS data_length
+        FROM historique_imports
+        WHERE user_id=%s
+        ORDER BY date_import DESC, id DESC
+        LIMIT 1
+        """,
+        (user_id,),
+        True,
+    )
+    latest_success = get_last_successful_import(user_id)
+    decoded_rows_count = 0
+    data_length = 0
+    if latest_success:
+        try:
+            data_length = int(latest_success.get("data_length") or len(str(latest_success.get("data") or "")))
+        except Exception:
+            data_length = 0
+        decoded_rows_count = len(decode_import_rows(latest_success.get("data")))
+
+    dataset = get_active_user_dataset(user_id)
+    latest_success_payload = None
+    if latest_success:
+        latest_success_payload = {
+            "id": latest_success.get("id"),
+            "user_id": latest_success.get("user_id"),
+            "nom_fichier": latest_success.get("nom_fichier"),
+            "statut": latest_success.get("statut"),
+            "nb_lignes": latest_success.get("nb_lignes"),
+            "date_import": latest_success.get("date_import").isoformat() if latest_success.get("date_import") else None,
+            "data_length": len(str(latest_success.get("data") or "")),
+        }
+
+    return jsonify(make_json_safe({
+        "success": True,
+        "current_user_id": user_id,
+        "latest_import_for_user": latest_for_user,
+        "latest_success_import_for_user": latest_success_payload,
+        "data_length": data_length,
+        "decoded_rows_count": decoded_rows_count,
+        "analytics_will_work": bool(dataset.get("success") and (dataset.get("rows") or [])),
+        "message": dataset.get("message") if not dataset.get("success") else "Dataset utilisateur prêt pour Analytics.",
+    }))
 
 
 
@@ -2900,9 +3041,19 @@ def kpi_refresh():
 # ML DATA HELPERS
 # ═══════════════════════════════════════════════════════════════
 def _fetch_ml_dataframe(user_id, with_import=False):
-    imp, rows = _get_latest_import_dataset(user_id)
-    if not rows:
-        return (imp, pd.DataFrame()) if with_import else pd.DataFrame()
+    dataset = get_active_user_dataset(user_id)
+    rows = dataset.get("rows") or []
+    if not dataset.get("success") or not rows:
+        return (None, pd.DataFrame()) if with_import else pd.DataFrame()
+
+    imp = {
+        "id": dataset.get("import_id"),
+        "nom_fichier": dataset.get("filename"),
+        "date_import": dataset.get("date_import"),
+        "nb_lignes": len(rows),
+        "statut": "succes",
+        "source": dataset.get("source"),
+    }
 
     df = pd.DataFrame(rows)
     if df.empty:
@@ -3539,92 +3690,82 @@ def get_financial_context(user_id: int | None = None) -> dict:
         "latest_import": None,
     }
 
-    try:
-        if _table_exists("transactions"):
-            totals = run_query(
-                """
-                SELECT
-                    COUNT(*) AS total_transactions,
-                    COALESCE(SUM(CASE WHEN Montant_Signe > 0 THEN Montant_Signe ELSE 0 END), 0) AS revenus_totaux,
-                    COALESCE(SUM(CASE WHEN Montant_Signe < 0 THEN ABS(Montant_Signe) ELSE 0 END), 0) AS depenses_totales,
-                    COALESCE(SUM(Montant_Signe), 0) AS solde_net
-                FROM transactions
-                """,
-                fetch_one=True,
-            ) or {}
-            context["total_transactions"] = int(totals.get("total_transactions") or 0)
-            context["revenus_totaux"] = _to_float(totals.get("revenus_totaux"), 0.0)
-            context["depenses_totales"] = _to_float(totals.get("depenses_totales"), 0.0)
-            context["solde_net"] = _to_float(totals.get("solde_net"), 0.0)
+    dataset = get_active_user_dataset(user_id) if user_id else {"success": False, "rows": []}
+    rows = dataset.get("rows") or []
 
-            dept_row = run_query("SELECT COUNT(DISTINCT Departement_ID) AS n FROM transactions", fetch_one=True) or {}
-            context["departements_actifs"] = int(dept_row.get("n") or 0)
+    if dataset.get("success") and rows:
+        revenus = 0.0
+        depenses = 0.0
+        dept_stats = defaultdict(lambda: {"revenus": 0.0, "depenses": 0.0, "solde_net": 0.0, "nb_transactions": 0})
+        latest_rows = []
 
-            has_date = _table_exists("date")
-            has_dep = _table_exists("departement")
-            has_tt = _table_exists("typetransaction")
-            has_td = _table_exists("typedepense")
-            has_resp = _table_exists("responsable")
-            has_cf = _table_exists("clientfournisseur")
-            has_proj = _table_exists("projet")
+        for row in rows:
+            signed = _to_float(row.get("Montant_Signe"), 0.0)
+            if signed >= 0:
+                revenus += signed
+            else:
+                depenses += abs(signed)
 
-            latest_sql = [
-                "SELECT",
-                "t.Transaction_ID AS transaction_id,",
-                ("d.`Date` AS date_transaction," if has_date else "NULL AS date_transaction,"),
-                "ROUND(COALESCE(t.Montant, 0), 3) AS montant,",
-                "ROUND(COALESCE(t.Montant_Signe, 0), 3) AS montant_signe,",
-                ("COALESCE(dep.NomDepartement, 'Non renseigne') AS departement," if has_dep else "CONCAT('Departement #', COALESCE(t.Departement_ID, 0)) AS departement,"),
-                ("COALESCE(tt.TypeTransaction, 'N/A') AS type_transaction," if has_tt else "CONCAT('Type #', COALESCE(t.TypeTransaction_ID, 0)) AS type_transaction,"),
-                ("COALESCE(td.TypeDepense, 'N/A') AS type_depense," if has_td else "CONCAT('Depense #', COALESCE(t.TypeDepense_ID, 0)) AS type_depense,"),
-                ("COALESCE(r.NomResponsable, 'Non renseigne') AS responsable," if has_resp else "CONCAT('Responsable #', COALESCE(t.Responsable_ID, 0)) AS responsable,"),
-                ("COALESCE(cf.NomClientFournisseur, 'Non renseigne') AS client_fournisseur," if has_cf else "CONCAT('Tiers #', COALESCE(t.ClientFournisseur_ID, 0)) AS client_fournisseur,"),
-                ("COALESCE(p.NomProjet, 'Sans projet') AS projet" if has_proj else "CONCAT('Projet #', COALESCE(t.Projet_ID, 0)) AS projet"),
-                "FROM transactions t",
-            ]
-            if has_date:
-                latest_sql.append("LEFT JOIN `date` d ON d.Date_ID = t.Date_ID")
-            if has_dep:
-                latest_sql.append("LEFT JOIN departement dep ON dep.Departement_ID = t.Departement_ID")
-            if has_tt:
-                latest_sql.append("LEFT JOIN typetransaction tt ON tt.TypeTransaction_ID = t.TypeTransaction_ID")
-            if has_td:
-                latest_sql.append("LEFT JOIN typedepense td ON td.TypeDepense_ID = t.TypeDepense_ID")
-            if has_resp:
-                latest_sql.append("LEFT JOIN responsable r ON r.Responsable_ID = t.Responsable_ID")
-            if has_cf:
-                latest_sql.append("LEFT JOIN clientfournisseur cf ON cf.ClientFournisseur_ID = t.ClientFournisseur_ID")
-            if has_proj:
-                latest_sql.append("LEFT JOIN projet p ON p.Projet_ID = t.Projet_ID")
-            latest_sql.append("ORDER BY")
-            latest_sql.append(("d.`Date` DESC," if has_date else "t.Transaction_ID DESC,"))
-            latest_sql.append("t.Transaction_ID DESC")
-            latest_sql.append("LIMIT 5")
+            dep_name = str(row.get("departement") or "Non renseigne")
+            dep = dept_stats[dep_name]
+            if signed >= 0:
+                dep["revenus"] += signed
+            else:
+                dep["depenses"] += abs(signed)
+            dep["solde_net"] += signed
+            dep["nb_transactions"] += 1
 
-            latest_rows = run_query("\n".join(latest_sql)) or []
-            for row in latest_rows:
-                dt = row.get("date_transaction")
-                if dt and hasattr(dt, "strftime"):
-                    row["date_transaction"] = dt.strftime("%Y-%m-%d")
-            context["dernieres_transactions"] = latest_rows
+            latest_rows.append({
+                "transaction_id": row.get("Transaction_ID"),
+                "date_transaction": row.get("date_val"),
+                "montant": round(_to_float(row.get("Montant"), abs(signed)), 3),
+                "montant_signe": round(signed, 3),
+                "departement": dep_name,
+                "type_transaction": row.get("type_transaction"),
+                "type_depense": row.get("type_depense"),
+                "responsable": row.get("responsable"),
+                "client_fournisseur": row.get("client_fournisseur"),
+                "projet": row.get("projet"),
+            })
 
-            top_sql = [
-                "SELECT",
-                ("COALESCE(dep.NomDepartement, CONCAT('Departement #', COALESCE(t.Departement_ID, 0))) AS departement," if has_dep else "CONCAT('Departement #', COALESCE(t.Departement_ID, 0)) AS departement,"),
-                "ROUND(COALESCE(SUM(CASE WHEN t.Montant_Signe > 0 THEN t.Montant_Signe ELSE 0 END), 0), 3) AS revenus,",
-                "ROUND(COALESCE(SUM(CASE WHEN t.Montant_Signe < 0 THEN ABS(t.Montant_Signe) ELSE 0 END), 0), 3) AS depenses,",
-                "ROUND(COALESCE(SUM(t.Montant_Signe), 0), 3) AS solde_net,",
-                "COUNT(*) AS nb_transactions",
-                "FROM transactions t",
-            ]
-            if has_dep:
-                top_sql.append("LEFT JOIN departement dep ON dep.Departement_ID = t.Departement_ID")
-            top_sql.append("GROUP BY t.Departement_ID" + (", dep.NomDepartement" if has_dep else ""))
-            top_sql.append("ORDER BY ABS(COALESCE(SUM(t.Montant_Signe), 0)) DESC")
-            top_sql.append("LIMIT 5")
-            context["top_departements"] = run_query("\n".join(top_sql)) or []
-    except Exception as e:
-        context["context_error"] = str(e)
+        latest_rows = sorted(
+            latest_rows,
+            key=lambda r: (
+                str(r.get("date_transaction") or ""),
+                _to_int(r.get("transaction_id"), 0),
+            ),
+            reverse=True,
+        )[:5]
+
+        top_departements = []
+        for dep_name, values in dept_stats.items():
+            top_departements.append({
+                "departement": dep_name,
+                "revenus": round(values["revenus"], 3),
+                "depenses": round(values["depenses"], 3),
+                "solde_net": round(values["solde_net"], 3),
+                "nb_transactions": int(values["nb_transactions"]),
+            })
+        top_departements = sorted(top_departements, key=lambda d: abs(_to_float(d.get("solde_net"), 0.0)), reverse=True)[:5]
+
+        context["total_transactions"] = int(len(rows))
+        context["revenus_totaux"] = round(revenus, 3)
+        context["depenses_totales"] = round(depenses, 3)
+        context["solde_net"] = round(revenus - depenses, 3)
+        context["departements_actifs"] = int(len([d for d in dept_stats.keys() if str(d).strip()]))
+        context["dernieres_transactions"] = latest_rows
+        context["top_departements"] = top_departements
+        context["latest_import"] = {
+            "import_id": dataset.get("import_id"),
+            "filename": dataset.get("filename"),
+            "imported_at": dataset.get("date_import").strftime("%Y-%m-%d %H:%M:%S") if dataset.get("date_import") else None,
+            "rows_count": len(rows),
+            "revenus": round(revenus, 3),
+            "depenses": round(depenses, 3),
+            "solde_net": round(revenus - depenses, 3),
+        }
+    else:
+        context["latest_import"] = None
 
     try:
         if _table_exists("valeur_kpi"):
@@ -3640,30 +3781,12 @@ def get_financial_context(user_id: int | None = None) -> dict:
     except Exception:
         context["kpi_disponibles"] = []
 
-    try:
-        if user_id:
-            imp, rows = _get_latest_import_dataset(user_id)
-            if imp and rows:
-                import_revenus = sum(_to_float(r.get("Montant_Signe"), 0.0) for r in rows if _to_float(r.get("Montant_Signe"), 0.0) > 0)
-                import_depenses = abs(sum(_to_float(r.get("Montant_Signe"), 0.0) for r in rows if _to_float(r.get("Montant_Signe"), 0.0) < 0))
-                context["latest_import"] = {
-                    "import_id": imp.get("id"),
-                    "filename": imp.get("nom_fichier"),
-                    "imported_at": imp.get("date_import").strftime("%Y-%m-%d %H:%M:%S") if imp.get("date_import") else None,
-                    "rows_count": len(rows),
-                    "revenus": round(import_revenus, 3),
-                    "depenses": round(import_depenses, 3),
-                    "solde_net": round(import_revenus - import_depenses, 3),
-                }
-    except Exception:
-        context["latest_import"] = None
-
     return make_json_safe(context)
 
 
 def _context_to_prompt_text(context: dict) -> str:
     lines = [
-        f"Transactions totales (table transactions): {int(context.get('total_transactions') or 0)}",
+        f"Transactions totales (dataset actif utilisateur): {int(context.get('total_transactions') or 0)}",
         f"Revenus totaux: {float(context.get('revenus_totaux') or 0):.2f} DT",
         f"Dépenses totales: {float(context.get('depenses_totales') or 0):.2f} DT",
         f"Solde net: {float(context.get('solde_net') or 0):.2f} DT",

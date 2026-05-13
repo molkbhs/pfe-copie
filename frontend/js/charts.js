@@ -71,6 +71,7 @@
 
   const defaultEmptyMessage = 'Aucun import disponible. Veuillez importer un fichier depuis la page Data Import.';
   const sessionExpiredMessage = 'Session expirée. Veuillez vous reconnecter.';
+  const FORCE_REFRESH_KEY = 'finova_analytics_force_refresh';
   const ANALYSIS_VIEWS = {
     global: {
       title: 'Vue globale',
@@ -347,6 +348,21 @@
       return false;
     }
     return true;
+  }
+
+  function consumeForceRefreshFlag() {
+    let value = '';
+    try {
+      value = String(localStorage.getItem(FORCE_REFRESH_KEY) || sessionStorage.getItem(FORCE_REFRESH_KEY) || '');
+      if (value) {
+        localStorage.removeItem(FORCE_REFRESH_KEY);
+        sessionStorage.removeItem(FORCE_REFRESH_KEY);
+        return true;
+      }
+    } catch (_) {
+      return false;
+    }
+    return false;
   }
 
   async function fetchJson(path, options = {}, requireAuth = true) {
@@ -1957,13 +1973,16 @@
 
       state.analyticsReady = analyticsPayload.analytics_ready !== false;
       state.analyticsMessage = analyticsPayload.message || '';
+      const analyticsRows = Array.isArray(analyticsPayload.data)
+        ? analyticsPayload.data
+        : (Array.isArray(analyticsPayload.rows) ? analyticsPayload.rows : []);
 
-      if (!state.analyticsReady || !Array.isArray(analyticsPayload.data) || !analyticsPayload.data.length) {
+      if (!state.analyticsReady || !analyticsRows.length) {
         clearDashboard(state.analyticsMessage || defaultEmptyMessage);
         return;
       }
 
-      state.allTx = analyticsPayload.data.map(normalizeTxRow);
+      state.allTx = analyticsRows.map(normalizeTxRow);
 
       if (forceRefreshKpi) {
         await fetchJson('/api/analytics/kpi-refresh', {
@@ -2385,6 +2404,10 @@
     });
 
     window.addEventListener('storage', (event) => {
+      if (event.key === FORCE_REFRESH_KEY && event.newValue) {
+        loadData(true).catch(() => clearDashboard('Impossible de rafraîchir les données analytiques.'));
+        return;
+      }
       if (event.key !== 'user') return;
       if (event.newValue) return;
       forceLogout(sessionExpiredMessage);
@@ -2413,8 +2436,8 @@
     bindExportButtons();
     bindThemeRepaint();
     setActiveView(state.activeFocus || 'global', false);
-
-    await loadData(false);
+    const forceRefresh = consumeForceRefreshFlag() || new URLSearchParams(window.location.search).get('force') === '1';
+    await loadData(forceRefresh);
   }
 
   boot().catch((error) => {

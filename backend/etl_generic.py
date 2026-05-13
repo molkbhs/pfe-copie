@@ -591,30 +591,55 @@ def _next_id(cursor, table, id_col) -> int:
     return int(cursor.fetchone()["n"])
 
 
+def _table_columns(cursor, table) -> set[str]:
+    cursor.execute(f"SHOW COLUMNS FROM `{table}`")
+    return {str(r["Field"]) for r in cursor.fetchall()}
+
+
 def _ensure_date_dimension(cursor, df, log) -> dict:
     existing = _fetch_lookup(cursor, "date", "Date", "Date_ID")
     next_id = _next_id(cursor, "date", "Date_ID")
+    date_columns = _table_columns(cursor, "date")
     new_dates = sorted(set(df["Date"].dropna().dt.strftime("%Y-%m-%d").unique()) - set(existing))
+
+    # Support both schemas:
+    # - Minimal date table: Date_ID, Date
+    # - Extended date table: Date_ID, Date, Année, Mois, ...
+    ordered_candidates = [
+        "Date_ID",
+        "Date",
+        "Année",
+        "Mois",
+        "Trimestre",
+        "AnnéeFiscale",
+        "JourSemaine",
+        "Semaine",
+        "JourAnnée",
+        "YearMonth",
+    ]
+    insert_cols = [c for c in ordered_candidates if c in date_columns]
+    if "Date_ID" not in insert_cols or "Date" not in insert_cols:
+        raise ValueError("La table `date` doit contenir au minimum les colonnes `Date_ID` et `Date`.")
+
+    placeholders = ",".join(["%s"] * len(insert_cols))
+    cols_sql = ",".join(f"`{c}`" for c in insert_cols)
+    insert_sql = f"INSERT INTO `date` ({cols_sql}) VALUES ({placeholders})"
 
     for value in new_dates:
         d = pd.to_datetime(value)
-        cursor.execute(
-            """INSERT INTO `date`
-               (`Date_ID`,`Date`,`Année`,`Mois`,`Trimestre`,`AnnéeFiscale`,`JourSemaine`,`Semaine`,`JourAnnée`,`YearMonth`)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (
-                next_id,
-                value,
-                int(d.year),
-                int(d.month),
-                int(d.quarter),
-                int(d.year),
-                d.day_name(),
-                int(d.isocalendar().week),
-                int(d.dayofyear),
-                d.strftime("%Y-%m"),
-            ),
-        )
+        values_map = {
+            "Date_ID": next_id,
+            "Date": value,
+            "Année": int(d.year),
+            "Mois": int(d.month),
+            "Trimestre": int(d.quarter),
+            "AnnéeFiscale": int(d.year),
+            "JourSemaine": d.day_name(),
+            "Semaine": int(d.isocalendar().week),
+            "JourAnnée": int(d.dayofyear),
+            "YearMonth": d.strftime("%Y-%m"),
+        }
+        cursor.execute(insert_sql, tuple(values_map[c] for c in insert_cols))
         existing[value] = next_id
         next_id += 1
 

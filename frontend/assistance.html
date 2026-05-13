@@ -802,6 +802,7 @@ let _logoutTriggered = false;
 let simpleTrendChart = null;
 const NO_IMPORT_MESSAGE = 'Aucun import disponible. Veuillez importer un fichier depuis la page Data Import.';
 const SESSION_REQUIRED_MESSAGE = 'Session expirée. Reconnectez-vous pour consulter vos données.';
+const FORCE_REFRESH_KEY = 'finova_analytics_force_refresh';
 
 function apiUrl(path) {
     return `${window.API_BASE || ''}${path}`;
@@ -878,6 +879,18 @@ function ensureValidSession() {
 
 function getAuthHeader() {
     return authHeaders(true);
+}
+
+function consumeForceRefreshFlag() {
+    try {
+        const flag = String(localStorage.getItem(FORCE_REFRESH_KEY) || sessionStorage.getItem(FORCE_REFRESH_KEY) || '');
+        if (!flag) return false;
+        localStorage.removeItem(FORCE_REFRESH_KEY);
+        sessionStorage.removeItem(FORCE_REFRESH_KEY);
+        return true;
+    } catch (_) {
+        return false;
+    }
 }
 
 function clearLocalState(message = 'Session non authentifiée.') {
@@ -986,9 +999,9 @@ async function fetchJson(path, options = {}, requireAuth = true) {
     return { res, data };
 }
 
-async function loadKPIs() {
+async function loadKPIs(force = false) {
     try {
-        const rows = await fetchAnalyticsRows();
+        const rows = await fetchAnalyticsRows(force);
         if (!rows.length) {
             clearLocalState(_analyticsMeta.message || NO_IMPORT_MESSAGE);
             return;
@@ -1042,9 +1055,10 @@ async function loadKPIs() {
 }
 
 async function fetchAnalyticsRows(force = false) {
+    if (force) _analyticsRows = [];
     if (_analyticsRows.length && !force) return _analyticsRows;
 
-    const { res, data } = await fetchJson('/api/analytics/data', { method: 'GET' }, true);
+    const { res, data } = await fetchJson('/api/analytics/data', { method: 'GET', cache: 'no-store' }, true);
 
     if (res.status === 404 && String(data?.error || '').toLowerCase().includes('aucun import disponible')) {
         _analyticsMeta = { analytics_ready: false, message: data?.message || NO_IMPORT_MESSAGE };
@@ -1057,11 +1071,13 @@ async function fetchAnalyticsRows(force = false) {
         message: data.message || ''
     };
 
-    if (!res.ok || !data.success || !Array.isArray(data.data)) {
+    const rows = Array.isArray(data.data) ? data.data : (Array.isArray(data.rows) ? data.rows : []);
+    if (!res.ok || !data.success || !Array.isArray(rows)) {
+        if (force) _analyticsRows = [];
         throw new Error(data.error || 'Impossible de charger les transactions');
     }
 
-    _analyticsRows = data.data;
+    _analyticsRows = rows;
     return _analyticsRows;
 }
 
@@ -1732,6 +1748,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     window.addEventListener('storage', (event) => {
+        if (event.key === FORCE_REFRESH_KEY && event.newValue) {
+            fetchAnalyticsRows(true).then(() => loadKPIs(true)).catch(() => {});
+            return;
+        }
         if (event.key !== 'user') return;
         if (event.newValue) return;
         enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
@@ -1761,7 +1781,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('btnTrendGenerate')?.addEventListener('click', loadSimpleTrend);
     document.getElementById('runSegmentationBtn')?.addEventListener('click', runSegmentation);
 
-    await loadKPIs();
+    const forceRefresh = consumeForceRefreshFlag() || new URLSearchParams(window.location.search).get('force') === '1';
+    await loadKPIs(forceRefresh);
 
     try {
         if (_cachedKpis.Solde_Net === null || _cachedKpis.Solde_Net === undefined) {
