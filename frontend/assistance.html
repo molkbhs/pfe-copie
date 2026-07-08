@@ -273,7 +273,7 @@
         /* Added sections */
         .simple-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 12px;
             margin: 16px 0 18px;
         }
@@ -432,6 +432,28 @@
         @media (max-width: 480px) {
             .kpi-bar { grid-template-columns: 1fr 1fr; }
         }
+        /* User pill dropdown styles */
+        .upill { cursor: pointer; display: inline-flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; transition: background .12s; }
+        .upill:hover { background: rgba(0,0,0,0.04); }
+        .uav { width:32px; height:32px; border-radius:8px; background:#e6f6f6; display:flex; align-items:center; justify-content:center; font-weight:700; color:#0f172a; }
+
+        .udrop { position: absolute; right: 10px; top: 58px; min-width: 220px; background: var(--bg-white, #fff); border-radius: 10px; box-shadow: 0 10px 30px rgba(2,6,23,0.12); border: 1px solid var(--border, #e6eef3); z-index: 1200; display: none; }
+        .udrop.show { display: block; }
+        .udrop-inner { padding: 10px; }
+        .udrop-header { display:flex; align-items:center; gap:10px; padding-bottom:8px; border-bottom:1px solid var(--border, #eef4f7); margin-bottom:8px; }
+        .menu-avatar { width:44px; height:44px; border-radius:8px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+        .udrop-item { display:block; padding:8px 10px; color:var(--text, #111827); text-decoration:none; border-radius:8px; margin-bottom:4px; font-weight:600; }
+        .udrop-item:hover { background: rgba(15, 23, 42, 0.04); }
+
+        [data-theme="dark"] .uav { background: #1f2937; color: #e6eef8; }
+        [data-theme="dark"] .udrop { background: #0b1220; border-color: #232b37; box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+        [data-theme="dark"] .udrop-item:hover { background: rgba(255,255,255,0.02); }
+
+        .uav-lg { width:44px; height:44px; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-weight:700; margin-right:8px; }
+        .udrop-name { font-weight:700; }
+        .udrop-email { font-size:0.85rem; color:var(--text-muted,#6b7280); }
+        .lo-btn { background: transparent; border: none; color: var(--text, #111827); padding: 8px 10px; border-radius: 8px; cursor: pointer; font-weight:700; }
+
     </style>
 
     <script src="js/theme-manager.js"></script>
@@ -452,7 +474,7 @@
         <a class="brand" href="dash.html"><span class="brand-dot"></span><span class="brand-text">Finova</span></a>
         <div class="tnav nav-left">
             <a href="dash.html">Data Import</a>
-            <a href="charts.html">Analytics</a>
+            <a href="charts.html">Analyse</a>
             <a href="assistance.html" class="active">Assistance</a>
         </div>
         <div class="tnav nav-right">
@@ -462,12 +484,27 @@
         </div>
         <div class="tr2">
             <button class="theme-toggle" id="themeToggle" type="button">
-                <span id="themeIcon"></span>
+                <span id="themeIcon"><i class="bi bi-moon-stars-fill"></i></span>
                 <span id="themeLabel">Sombre</span>
             </button>
             <div class="upill" id="userPill">
                 <div class="uav" id="userAvatar">U</div>
-                <span id="navUser">Chargement...</span>
+                <span id="navUser">Chargement…</span>
+                <div class="udrop" id="userMenu">
+                    <div class="udrop-header">
+                        <div class="uav-lg" id="menuUserAvatarLg">U</div>
+                        <div class="udrop-name" id="menuUserName">Utilisateur</div>
+                        <div class="udrop-email" id="menuUserEmail">&nbsp;</div>
+                    </div>
+                    <div class="udrop-actions">
+                        <a href="profile.html">
+                            <i class="bi bi-person-circle" style="font-size:1.1rem"></i> Gérer votre compte
+                        </a>
+                    </div>
+                    <div class="udrop-footer">
+                        <button id="logoutNav" class="lo-btn">Se déconnecter</button>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>
@@ -477,6 +514,18 @@
             <h1 class="fw-800 mb-1">Aide à la Décision</h1>
             <p class="text-muted mb-0">Simulations What-If basées sur vos données réelles • Valeurs en Dinars Tunisiens (DT)</p>
         </header>
+
+        <div id="assistanceLoadingState" class="alert alert-info py-2 px-3 mb-4 d-none" role="status" aria-live="polite">
+            <div class="d-flex align-items-start gap-2">
+                <span id="assistanceLoadingSpinner" class="spinner-border spinner-border-sm mt-1" aria-hidden="true"></span>
+                <div>
+                    <div class="fw-semibold" id="assistanceLoadingTitle">Préparation de l’assistance intelligente...</div>
+                    <div class="small text-muted" id="assistanceLoadingLine1"></div>
+                    <div class="small text-muted" id="assistanceLoadingLine2"></div>
+                    <div class="small text-muted" id="assistanceLoadingLine3"></div>
+                </div>
+            </div>
+        </div>
 
         <div class="kpi-bar" id="kpiBar">
             <div class="kpi-tile green">
@@ -691,25 +740,6 @@
                         </div>
                     </div>
 
-                    <div class="simple-grid">
-                        <div class="simple-box">
-                            <div class="lbl">Vue</div>
-                            <div class="val" id="trendMetaType">—</div>
-                        </div>
-                        <div class="simple-box">
-                            <div class="lbl">Élément principal</div>
-                            <div class="val" id="trendMetaEntity">—</div>
-                        </div>
-                        <div class="simple-box">
-                            <div class="lbl">Erreur moyenne</div>
-                            <div class="val" id="trendMetaMae">—</div>
-                        </div>
-                        <div class="simple-box">
-                            <div class="lbl">Qualité</div>
-                            <div class="val" id="trendMetaQuality">—</div>
-                        </div>
-                    </div>
-
                     <div class="simple-chart-wrap">
                         <canvas id="simpleTrendChart"></canvas>
                     </div>
@@ -718,6 +748,7 @@
                     <div class="simple-plain-box" id="simpleTrendSummary">
                         Le résumé simple apparaîtra ici.
                     </div>
+
                 </div>
             </div>
 
@@ -799,13 +830,85 @@ let _analyticsRows = [];
 let _analyticsMeta = { analytics_ready: true, message: '' };
 let _currentUser = null;
 let _logoutTriggered = false;
+let _assistanceCacheRefreshScheduled = false;
 let simpleTrendChart = null;
 const NO_IMPORT_MESSAGE = 'Aucun import disponible. Veuillez importer un fichier depuis la page Data Import.';
 const SESSION_REQUIRED_MESSAGE = 'Session expirée. Reconnectez-vous pour consulter vos données.';
 const FORCE_REFRESH_KEY = 'finova_analytics_force_refresh';
 
+// Clés de cache et version pour la page assistance.
+// On stocke le dernier ensemble de lignes d'analytics et on le réutilise
+// tant que l'import n'a pas changé.
+const ASSISTANCE_CACHE_KEY = 'finova_assistance_cache';
+const ANALYTICS_IMPORT_CACHE_KEY = 'finova_last_import_id';
+const ASSISTANCE_CACHE_VERSION = 1;
+const ASSISTANCE_CACHE_MAX_BYTES = 2_000_000;
+const ASSISTANCE_LOAD_ERROR_PRIMARY = 'Impossible de charger les résultats pour le moment. Veuillez vérifier vos données importées puis réessayer.';
+const ASSISTANCE_LOAD_ERROR_SECONDARY = 'Le traitement n’a pas pu être terminé. Vous pouvez relancer l’analyse dans quelques instants.';
+let _assistanceLoadingHideTimer = null;
+
 function apiUrl(path) {
     return `${window.API_BASE || ''}${path}`;
+}
+
+function safeParseJson(value) {
+    try {
+        return JSON.parse(String(value || ''));
+    } catch (_) {
+        return null;
+    }
+}
+
+function getAssistanceCache() {
+    // Essaie de récupérer le cache stocké localement pour la page assistance.
+    // Ce cache est valide uniquement si la version est la bonne et si
+    // la structure des données est conforme.
+    try {
+        const cache = safeParseJson(localStorage.getItem(ASSISTANCE_CACHE_KEY));
+        if (!cache || cache.version !== ASSISTANCE_CACHE_VERSION) return null;
+        if (!cache.import_id || !Array.isArray(cache.rows)) return null;
+        return cache;
+    } catch (_) {
+        return null;
+    }
+}
+
+function saveAssistanceCache(cache) {
+    // Enregistre en local la copie des lignes analytics et des KPI calculés.
+    // Cela permet d'afficher plus rapidement la page d'assistance au prochain accès.
+    if (!cache || !cache.import_id || !Array.isArray(cache.rows)) return;
+    if (!cache || !cache.import_id || !Array.isArray(cache.rows)) return;
+    try {
+        const payload = JSON.stringify(cache);
+        if (payload.length > ASSISTANCE_CACHE_MAX_BYTES) {
+            // Si le cache est trop volumineux, on ne le conserve pas.
+            localStorage.removeItem(ASSISTANCE_CACHE_KEY);
+            return;
+        }
+        localStorage.setItem(ASSISTANCE_CACHE_KEY, payload);
+        localStorage.setItem(ANALYTICS_IMPORT_CACHE_KEY, cache.import_id);
+    } catch (_) {
+        try {
+            localStorage.removeItem(ASSISTANCE_CACHE_KEY);
+        } catch (_) {}
+    }
+}
+
+function scheduleAssistanceBackgroundRefresh() {
+    // Après affichage depuis le cache, on relance un rafraîchissement
+    // en arrière-plan pour s'assurer que les données sont encore valides.
+    if (_assistanceCacheRefreshScheduled) return;
+    if (_assistanceCacheRefreshScheduled) return;
+    _assistanceCacheRefreshScheduled = true;
+    window.setTimeout(async () => {
+        _assistanceCacheRefreshScheduled = false;
+        try {
+            await fetchAnalyticsRows(true);
+            await Promise.all([loadKPIs(true), loadRecommandations(true)]);
+        } catch (_) {
+            // ignore background refresh errors
+        }
+    }, 0);
 }
 
 function fmtDT(val) {
@@ -822,6 +925,61 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function setAssistanceLoadingState({
+    visible = true,
+    tone = 'info',
+    spinning = true,
+    title = '',
+    lines = []
+} = {}) {
+    const box = document.getElementById('assistanceLoadingState');
+    if (!box) return;
+
+    if (_assistanceLoadingHideTimer) {
+        window.clearTimeout(_assistanceLoadingHideTimer);
+        _assistanceLoadingHideTimer = null;
+    }
+
+    if (!visible) {
+        box.classList.add('d-none');
+        return;
+    }
+
+    box.classList.remove('d-none', 'alert-info', 'alert-success', 'alert-danger', 'alert-warning');
+    box.classList.add(`alert-${tone}`);
+
+    const spinner = document.getElementById('assistanceLoadingSpinner');
+    if (spinner) spinner.classList.toggle('d-none', !spinning);
+
+    const titleEl = document.getElementById('assistanceLoadingTitle');
+    if (titleEl) titleEl.textContent = String(title || '');
+
+    const lineEls = [
+        document.getElementById('assistanceLoadingLine1'),
+        document.getElementById('assistanceLoadingLine2'),
+        document.getElementById('assistanceLoadingLine3')
+    ];
+    lineEls.forEach((el, idx) => {
+        if (!el) return;
+        el.textContent = String(lines[idx] || '');
+        el.classList.toggle('d-none', !lines[idx]);
+    });
+}
+
+function hideAssistanceLoadingState(delayMs = 0) {
+    if (_assistanceLoadingHideTimer) {
+        window.clearTimeout(_assistanceLoadingHideTimer);
+        _assistanceLoadingHideTimer = null;
+    }
+    if (!delayMs) {
+        setAssistanceLoadingState({ visible: false });
+        return;
+    }
+    _assistanceLoadingHideTimer = window.setTimeout(() => {
+        setAssistanceLoadingState({ visible: false });
+    }, delayMs);
 }
 
 function getUser() {
@@ -930,6 +1088,10 @@ function clearLocalState(message = 'Session non authentifiée.') {
     if (simpleTrendSummary) {
         simpleTrendSummary.innerHTML = escapeHtml(message);
     }
+    ['trendMetaType', 'trendMetaEntity', 'trendMetaMae', 'trendMetaRmse', 'trendMetaR2', 'trendMetaQuality'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '—';
+    });
 
     const segmentationList = document.getElementById('segmentationList');
     if (segmentationList) {
@@ -1001,8 +1163,22 @@ async function fetchJson(path, options = {}, requireAuth = true) {
 
 async function loadKPIs(force = false) {
     try {
+        setAssistanceLoadingState({
+            tone: 'info',
+            spinning: true,
+            title: 'Chargement des indicateurs nécessaires...',
+            lines: [
+                'Nous analysons vos données financières pour générer des recommandations adaptées.'
+            ]
+        });
         const rows = await fetchAnalyticsRows(force);
         if (!rows.length) {
+            setAssistanceLoadingState({
+                tone: 'warning',
+                spinning: false,
+                title: _analyticsMeta.message || NO_IMPORT_MESSAGE,
+                lines: []
+            });
             clearLocalState(_analyticsMeta.message || NO_IMPORT_MESSAGE);
             return;
         }
@@ -1050,13 +1226,37 @@ async function loadKPIs(force = false) {
         }
     } catch (e) {
         if (e?.code === 'AUTH_REQUIRED') return;
+        setAssistanceLoadingState({
+            tone: 'danger',
+            spinning: false,
+            title: ASSISTANCE_LOAD_ERROR_PRIMARY,
+            lines: [ASSISTANCE_LOAD_ERROR_SECONDARY]
+        });
         console.warn('[KPI load]', e);
     }
 }
 
 async function fetchAnalyticsRows(force = false) {
+    // Charge les données analytics pour la page assistance.
+    // Si le cache local est valide et qu'on ne force pas la mise à jour,
+    // on l'utilise immédiatement.
     if (force) _analyticsRows = [];
-    if (_analyticsRows.length && !force) return _analyticsRows;
+    else {
+        const cache = getAssistanceCache();
+        const currentImportId = String(localStorage.getItem(ANALYTICS_IMPORT_CACHE_KEY) || '');
+        if (cache && cache.import_id === currentImportId && cache.rows.length) {
+            _analyticsRows = cache.rows;
+            _analyticsMeta = {
+                analytics_ready: cache.analytics_ready !== false,
+                message: cache.analytics_message || ''
+            };
+            if (cache.cachedKpis) {
+                _cachedKpis = cache.cachedKpis;
+            }
+            scheduleAssistanceBackgroundRefresh();
+            return _analyticsRows;
+        }
+    }
 
     const { res, data } = await fetchJson('/api/analytics/data', { method: 'GET', cache: 'no-store' }, true);
 
@@ -1077,12 +1277,25 @@ async function fetchAnalyticsRows(force = false) {
         throw new Error(data.error || 'Impossible de charger les transactions');
     }
 
+    const importId = data.import_id || (data.import && data.import.id) || null;
     _analyticsRows = rows;
+    saveAssistanceCache({
+        version: ASSISTANCE_CACHE_VERSION,
+        import_id: importId,
+        rows: _analyticsRows,
+        analytics_ready: _analyticsMeta.analytics_ready,
+        analytics_message: _analyticsMeta.message,
+        cachedKpis: _cachedKpis
+    });
     return _analyticsRows;
 }
 
 function uniqueSorted(values) {
-    return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'fr'));
+    const blocked = new Set(['n/a', 'na', 'null', 'none', 'inconnu', 'non renseigne', 'non renseigné', 'unknown', 'unspecified', '-']);
+    return [...new Set(values.filter((value) => {
+        const text = String(value || '').trim();
+        return text && !blocked.has(text.toLowerCase());
+    }))].sort((a, b) => String(a).localeCompare(String(b), 'fr'));
 }
 
 function fillSelect(selectId, values, preferredValue = '') {
@@ -1449,11 +1662,18 @@ function readableTrendType(type) {
     return map[type] || type || '—';
 }
 
-function trendQualityLabel(mae) {
-    const n = Number(mae || 0);
-    if (!n) return '—';
-    if (n < 5000) return 'Bonne';
-    if (n < 20000) return 'Moyenne';
+function trendQualityLabel(model) {
+    const mape = Number(model?.cv_mape);
+    if (Number.isFinite(mape) && mape > 0) {
+        if (mape < 10) return 'Bonne';
+        if (mape < 20) return 'Moyenne';
+        return 'Faible';
+    }
+
+    const mae = Number(model?.cv_mae || 0);
+    if (!mae) return '—';
+    if (mae < 5000) return 'Bonne';
+    if (mae < 20000) return 'Moyenne';
     return 'Faible';
 }
 
@@ -1549,30 +1769,33 @@ function fillSimpleTrend(payload) {
     const where = plain.where_to_look || {};
     const summary = payload.summary || {};
 
-    document.getElementById('trendMetaType').textContent = readableTrendType(payload.type);
-    document.getElementById('trendMetaEntity').textContent = payload.selection?.entity || 'Global';
-    document.getElementById('trendMetaMae').textContent = model.cv_mae != null ? fmtDT(model.cv_mae) : '—';
-    document.getElementById('trendMetaQuality').textContent = trendQualityLabel(model.cv_mae);
+    const trendMetaType = document.getElementById('trendMetaType');
+    const trendMetaEntity = document.getElementById('trendMetaEntity');
+    if (trendMetaType) trendMetaType.textContent = readableTrendType(payload.type);
+    if (trendMetaEntity) trendMetaEntity.textContent = payload.selection?.entity || 'Global';
 
-    document.getElementById('simpleTrendSummary').innerHTML = `
-        <div class="fw-700 mb-2">${escapeHtml(payload.title || 'Prévision')}</div>
-        <div class="mb-2"><strong>Ce qui peut arriver :</strong> ${escapeHtml(plain.what_happens || '—')}</div>
-        <div class="mb-2"><strong>Pourquoi :</strong> ${escapeHtml(plain.why || '—')}</div>
-        <div class="mb-2">
-            <strong>Où regarder :</strong>
-            Département <b>${escapeHtml(where.departement || '—')}</b>,
-            Poste <b>${escapeHtml(where.type_depense || '—')}</b>,
-            Fournisseur <b>${escapeHtml(where.fournisseur || '—')}</b>,
-            Projet <b>${escapeHtml(where.projet || '—')}</b>,
-            Responsable <b>${escapeHtml(where.responsable || '—')}</b>
-        </div>
-        <div class="mb-2">
-            <strong>Variation attendue :</strong>
-            ${Number(summary.delta || 0) >= 0 ? '+' : ''}${fmtDT(summary.delta || 0)}
-            (${Number(summary.delta_pct || 0) >= 0 ? '+' : ''}${Number(summary.delta_pct || 0).toFixed(2)}%)
-        </div>
-        <div><strong>Action conseillée :</strong> ${escapeHtml(plain.action || '—')}</div>
-    `;
+    const simpleTrendSummary = document.getElementById('simpleTrendSummary');
+    if (simpleTrendSummary) {
+        simpleTrendSummary.innerHTML = `
+            <div class="fw-700 mb-2">${escapeHtml(payload.title || 'Prévision')}</div>
+            <div class="mb-2"><strong>Ce qui peut arriver :</strong> ${escapeHtml(plain.what_happens || '—')}</div>
+            <div class="mb-2"><strong>Pourquoi :</strong> ${escapeHtml(plain.why || '—')}</div>
+            <div class="mb-2">
+                <strong>Où regarder :</strong>
+                Département <b>${escapeHtml(where.departement || '—')}</b>,
+                Poste <b>${escapeHtml(where.type_depense || '—')}</b>,
+                Fournisseur <b>${escapeHtml(where.fournisseur || '—')}</b>,
+                Projet <b>${escapeHtml(where.projet || '—')}</b>,
+                Responsable <b>${escapeHtml(where.responsable || '—')}</b>
+            </div>
+            <div class="mb-2">
+                <strong>Variation attendue :</strong>
+                ${Number(summary.delta || 0) >= 0 ? '+' : ''}${fmtDT(summary.delta || 0)}
+                (${Number(summary.delta_pct || 0) >= 0 ? '+' : ''}${Number(summary.delta_pct || 0).toFixed(2)}%)
+            </div>
+            <div><strong>Action conseillée :</strong> ${escapeHtml(plain.action || '—')}</div>
+        `;
+    }
 }
 
 async function loadSimpleTrend() {
@@ -1589,6 +1812,14 @@ async function loadSimpleTrend() {
         errorBox.style.display = 'none';
         errorBox.innerHTML = '';
     }
+    setAssistanceLoadingState({
+        tone: 'info',
+        spinning: true,
+        title: 'Calcul des tendances et prévisions en cours...',
+        lines: [
+            'Cette opération peut prendre quelques secondes selon le volume des données.'
+        ]
+    });
 
     try {
         const { res, data } = await fetchJson(
@@ -1597,6 +1828,12 @@ async function loadSimpleTrend() {
             true
         );
         if (res.status === 404 && String(data?.error || '').toLowerCase().includes('aucun import disponible')) {
+            setAssistanceLoadingState({
+                tone: 'warning',
+                spinning: false,
+                title: data?.message || NO_IMPORT_MESSAGE,
+                lines: []
+            });
             clearLocalState(data?.message || NO_IMPORT_MESSAGE);
             return;
         }
@@ -1607,9 +1844,22 @@ async function loadSimpleTrend() {
 
         renderSimpleTrendChart(data);
         fillSimpleTrend(data);
+        setAssistanceLoadingState({
+            tone: 'success',
+            spinning: false,
+            title: 'Assistance prête.',
+            lines: []
+        });
+        hideAssistanceLoadingState(1800);
     } catch (e) {
         if (e?.code === 'AUTH_REQUIRED') return;
         console.error('[simple trend]', e);
+        setAssistanceLoadingState({
+            tone: 'danger',
+            spinning: false,
+            title: ASSISTANCE_LOAD_ERROR_PRIMARY,
+            lines: [ASSISTANCE_LOAD_ERROR_SECONDARY]
+        });
         if (errorBox) {
             errorBox.style.display = 'block';
             errorBox.innerHTML = `Erreur : ${escapeHtml(e.message || 'Erreur inconnue')}`;
@@ -1652,17 +1902,30 @@ async function runSegmentation() {
         document.getElementById('segRiskLabel').textContent = data.overview?.risky_segment || '--';
         document.getElementById('segCountLabel').textContent = data.overview?.segments_count || '--';
 
-        const segments = data.segments || [];
+        // Dupliquer le tableau pour ne pas modifier l'objet original renvoyé par le backend.
+        const segments = (data.segments || []).slice();
+
+        // Tri des profils du plus élevé au moins élevé selon le niveau de risque.
+        // En cas d'égalité de risque, on affiche en premier les segments avec le plus grand nombre de transactions.
+        const riskOrder = { 'élevé': 0, 'moyen': 1, 'faible': 2 };
+        segments.sort((a, b) => {
+            const aRisk = riskOrder[a.risk_level] ?? 3;
+            const bRisk = riskOrder[b.risk_level] ?? 3;
+            if (aRisk !== bRisk) return aRisk - bRisk;
+
+            const aCount = Number(a.tx_count ?? a.count ?? 0);
+            const bCount = Number(b.tx_count ?? b.count ?? 0);
+            return bCount - aCount;
+        });
+
         list.innerHTML = segments.map(seg => {
             const badgeClass =
                 seg.risk_level === 'élevé' ? 'reco-badge red' :
                 seg.risk_level === 'moyen' ? 'reco-badge amber' :
                 'reco-badge green';
             const txCount = seg.tx_count ?? seg.count ?? 0;
-            const dominantDepartment = seg.main_department || seg.dominant_department || '--';
             const dominantType = seg.main_type || seg.dominant_depense || '--';
             const dominantSupplier = seg.main_supplier || (Array.isArray(seg.top_entities) && seg.top_entities[0]) || '--';
-            const dominantProject = seg.main_project || '--';
 
             return `
                 <div class="reco-item">
@@ -1670,10 +1933,8 @@ async function runSegmentation() {
                     <div class="reco-value">${escapeHtml(seg.segment_label || 'Profil')}</div>
                     <div class="reco-text">
                         <strong>${txCount}</strong> transactions<br>
-                        Département dominant : <strong>${escapeHtml(dominantDepartment)}</strong><br>
                         Poste dominant : <strong>${escapeHtml(dominantType)}</strong><br>
-                        Fournisseur dominant : <strong>${escapeHtml(dominantSupplier)}</strong><br>
-                        Projet dominant : <strong>${escapeHtml(dominantProject)}</strong>
+                        Fournisseur dominant : <strong>${escapeHtml(dominantSupplier)}</strong>
                     </div>
                     <div class="small text-muted mt-2">${escapeHtml(seg.explanation || '')}</div>
                 </div>
@@ -1697,12 +1958,13 @@ async function runSegmentation() {
 
 function addChatMsg(text, role) {
     const body = document.getElementById('chatBox') || document.getElementById('chatBody');
-    if (!body) return;
+    if (!body) return null;
     const div = document.createElement('div');
     div.className = `chat-msg ${role}`;
     div.textContent = text;
     body.appendChild(div);
     body.scrollTop = body.scrollHeight;
+    return div;
 }
 
 async function sendAssistanceChatbotMessage(message, page = 'assistance') {
@@ -1720,21 +1982,42 @@ async function askAIChatbot(questionOverride = '') {
     if (input) input.value = '';
     addChatMsg(msg, 'user');
 
+    const waitingNodes = [];
+    waitingNodes.push(addChatMsg("L’assistant IA analyse vos données financières...", 'bot'));
+    waitingNodes.push(addChatMsg("La réponse peut prendre quelques secondes selon le modèle utilisé.", 'bot'));
+    waitingNodes.push(addChatMsg('Génération de la réponse en cours...', 'bot'));
+    waitingNodes.push(addChatMsg('Merci de patienter.', 'bot'));
+
+    let slowNode = null;
+    const slowTimer = window.setTimeout(() => {
+        slowNode = addChatMsg('L’analyse prend un peu plus de temps que prévu, mais le traitement continue.', 'bot');
+    }, 4500);
+
     try {
         const user = ensureValidSession();
         if (!user) {
+            window.clearTimeout(slowTimer);
+            waitingNodes.forEach((node) => node?.remove?.());
+            slowNode?.remove?.();
             enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
             return;
         }
 
         const answer = await sendAssistanceChatbotMessage(msg, 'assistance');
+        window.clearTimeout(slowTimer);
+        waitingNodes.forEach((node) => node?.remove?.());
+        slowNode?.remove?.();
         addChatMsg(String(answer || '').replace(/\u20AC/g, 'DT') || "Je n'ai pas compris la question.", 'bot');
     } catch (e) {
+        window.clearTimeout(slowTimer);
+        waitingNodes.forEach((node) => node?.remove?.());
+        slowNode?.remove?.();
         if (e?.code === 'AUTH_REQUIRED') {
             enforceLogoutState(SESSION_REQUIRED_MESSAGE, true);
             return;
         }
-        addChatMsg("Je n'ai pas pu interroger l'assistant pour le moment.", 'error');
+        addChatMsg('Impossible de charger les résultats pour le moment. Veuillez vérifier vos données importées puis réessayer.', 'error');
+        addChatMsg('Le traitement n’a pas pu être terminé. Vous pouvez relancer l’analyse dans quelques instants.', 'error');
     }
 }
 
@@ -1778,11 +2061,26 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
+    setAssistanceLoadingState({
+        tone: 'info',
+        spinning: true,
+        title: 'Préparation de l’assistance intelligente...',
+        lines: [
+            'Nous analysons vos données financières pour générer des recommandations adaptées.',
+            'Cette opération peut prendre quelques secondes selon le volume des données.'
+        ]
+    });
+
     document.getElementById('btnTrendGenerate')?.addEventListener('click', loadSimpleTrend);
     document.getElementById('runSegmentationBtn')?.addEventListener('click', runSegmentation);
 
     const forceRefresh = consumeForceRefreshFlag() || new URLSearchParams(window.location.search).get('force') === '1';
-    await loadKPIs(forceRefresh);
+
+    await Promise.allSettled([
+        loadKPIs(forceRefresh),
+        initScenarioForm(),
+        loadRecommandations()
+    ]);
 
     try {
         if (_cachedKpis.Solde_Net === null || _cachedKpis.Solde_Net === undefined) {
@@ -1799,9 +2097,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.warn('[KPI refresh]', e);
     }
 
-    await initScenarioForm();
-    await loadRecommandations();
-    await loadSimpleTrend();
+    setAssistanceLoadingState({
+        tone: 'success',
+        spinning: false,
+        title: 'Assistance prête.',
+        lines: ['Cliquez sur Générer pour lancer les prévisions.']
+    });
+    hideAssistanceLoadingState(600);
 });
 </script>
 </body>

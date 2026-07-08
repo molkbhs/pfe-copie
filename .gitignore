@@ -3,3 +3,15 @@
 .env.*
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Backend runtime directories
+backend/uploads_etl/
+backend/reports_exports/
+
+# SQLite dev DB
+backend/users.db
+
+# Node
+node_modules/

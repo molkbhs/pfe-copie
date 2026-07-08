@@ -134,14 +134,6 @@ function login() {
     });
 }
 
-function loginGoogle() {
-    const msgEl = document.getElementById('msg');
-    if (msgEl) {
-        setMessage(msgEl, 'Redirection vers Google...', 'text-info', 'bi-arrow-repeat');
-    }
-    window.location.href = `${apiBase()}/api/auth/google`;
-}
-
 function toggleLoginPassword() {
     const input = document.getElementById('password');
     if (!input) return;

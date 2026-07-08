@@ -1,5 +1,4 @@
 flask
-authlib
 mysql-connector-python
 flask-cors
 werkzeug
@@ -10,3 +9,9 @@ scikit-learn
 joblib
 PyJWT
 requests
+python-dotenv
+flask-limiter
+pytest
+pytest-flask
+openpyxl
+SQLAlchemy

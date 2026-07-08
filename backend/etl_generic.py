@@ -42,6 +42,8 @@ HEADER_ALIASES = {
     "Date": [
         "date",
         "date_transaction",
+        "date_vente",
+        "sale_date",
         "transaction_date",
         "dateoperation",
         "date_op",
@@ -58,6 +60,8 @@ HEADER_ALIASES = {
     ],
     "Département": [
         "departement",
+        "nom_departement",
+        "department_name",
         "department",
         "dept",
         "service",
@@ -66,6 +70,7 @@ HEADER_ALIASES = {
         "direction",
     ],
     "TypeTransaction": [
+        "type",
         "typetransaction",
         "type_transaction",
         "transaction_type",
@@ -89,6 +94,7 @@ HEADER_ALIASES = {
     "Montant": [
         "montant",
         "amount",
+        "revenu_client",
         "valeur",
         "montantdt",
         "montant_tnd",
@@ -136,7 +142,7 @@ HEADER_ALIASES = {
 def _connect():
     return pymysql.connect(
         host=DB_CONFIG["host"],
-        port=int(DB_CONFIG.get("port", 3306)),
+        port=int(DB_CONFIG.get("port", 3307)),
         user=DB_CONFIG["user"],
         password=DB_CONFIG["password"],
         database=DB_CONFIG["database"],
@@ -265,9 +271,13 @@ def _infer_date_from_fallback_columns(df: pd.DataFrame, log: list) -> pd.Series 
 def _normalize_type_transaction(value, amount_abs: float | None):
     label = _normalize_text(value)
     normalized = _normalize_header(label)
-    if normalized in {"revenu", "income", "vente", "encaissement", "credit", "in"}:
+
+    revenue_tokens = {"revenu", "recette", "income", "revenue", "vente", "encaissement", "credit", "in", "cash_in", "entree"}
+    expense_tokens = {"depense", "expense", "charge", "achat", "debit", "out", "cout", "couts", "sortie"}
+
+    if normalized in revenue_tokens:
         return "Revenu"
-    if normalized in {"depense", "expense", "charge", "achat", "debit", "out", "cout", "couts"}:
+    if normalized in expense_tokens:
         return "Depense"
 
     if amount_abs is not None and amount_abs < 0:
@@ -275,16 +285,63 @@ def _normalize_type_transaction(value, amount_abs: float | None):
     return "Revenu"
 
 
+def _infer_type_from_expense_label(value) -> str | None:
+    normalized = _normalize_header(_normalize_text(value))
+    if not normalized:
+        return None
+
+    expense_keywords = {
+        "depense",
+        "charge",
+        "achat",
+        "frais",
+        "commission",
+        "maintenance",
+        "transport",
+        "loyer",
+        "salaire",
+        "taxe",
+        "impot",
+        "honoraire",
+        "materiere_premiere",
+        "matiere_premiere",
+    }
+    revenue_keywords = {
+        "revenu",
+        "vente",
+        "facturation",
+        "encaissement",
+        "subvention",
+        "remboursement",
+    }
+
+    if any(k in normalized for k in expense_keywords):
+        return "Depense"
+    if any(k in normalized for k in revenue_keywords):
+        return "Revenu"
+    return None
+
+
 def _read_file(path: Path, log: list) -> pd.DataFrame:
     ext = path.suffix.lower()
     if ext == ".csv":
-        for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
+        for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "utf-16", "utf-16-le", "utf-16-be"]:
             try:
-                df = pd.read_csv(path, encoding=enc, low_memory=False)
+                # sep=None lets pandas detect comma/semicolon/tab for heterogeneous CSV exports.
+                df = pd.read_csv(path, encoding=enc, sep=None, engine="python")
                 log.append(f"✓ Fichier lu (CSV, {enc}) : {len(df)} lignes")
                 return df
             except UnicodeDecodeError:
                 continue
+            except Exception:
+                continue
+        try:
+            # Last-resort parser for noisy encodings.
+            df = pd.read_csv(path, encoding="latin-1", encoding_errors="replace", sep=None, engine="python")
+            log.append(f"✓ Fichier lu (CSV, fallback latin-1) : {len(df)} lignes")
+            return df
+        except Exception:
+            pass
         raise ValueError("Impossible de lire le CSV : encodage non reconnu")
 
     if ext in [".xlsx", ".xls"]:
@@ -296,10 +353,14 @@ def _read_file(path: Path, log: list) -> pd.DataFrame:
 
 
 def _json_safe_records(df: pd.DataFrame) -> list:
+    if df is None or df.empty:
+        return []
+
+    columns = list(df.columns)
     out = []
-    for _, row in df.iterrows():
+    for values in df.itertuples(index=False, name=None):
         record = {}
-        for col, val in row.items():
+        for col, val in zip(columns, values):
             try:
                 if pd.isna(val):
                     record[col] = None
@@ -461,10 +522,14 @@ def _clean_dataframe(df: pd.DataFrame):
     raw_signed = df["Montant_Signe"].apply(_parse_amount) if "Montant_Signe" in df.columns else pd.Series([None] * len(df), index=df.index)
     df["Montant"] = raw_amount.abs()
 
-    df["TypeTransaction"] = [
-        _normalize_type_transaction(tt, signed if signed is not None else amt)
-        for tt, signed, amt in zip(df.get("TypeTransaction"), raw_signed, raw_amount)
-    ]
+    inferred_from_expense = [_infer_type_from_expense_label(v) for v in df.get("TypeDépense")]
+    resolved_types = []
+    for tt, signed, amt, inferred in zip(df.get("TypeTransaction"), raw_signed, raw_amount, inferred_from_expense):
+        base = _normalize_type_transaction(tt, signed if signed is not None else amt)
+        if tt is None or str(tt).strip() == "":
+            base = inferred or base
+        resolved_types.append(base)
+    df["TypeTransaction"] = resolved_types
 
     for col in ["Département", "TypeDépense", "Responsable", "Client_Fournisseur", "Projet"]:
         df[col] = df[col].apply(_normalize_text)
@@ -712,39 +777,72 @@ def _ensure_typedepenses(cursor, df, log) -> dict:
 
 
 def _ensure_responsables(cursor, df, log) -> dict:
-    lookup = _fetch_combo_lookup(cursor, "responsable", ["NomResponsable", "Departement"], "Responsable_ID")
+    columns = _table_columns(cursor, "responsable")
+    has_departement = "Departement" in columns
     next_id = _next_id(cursor, "responsable", "Responsable_ID")
     inserted = 0
 
-    for nom, dept in df[["Responsable", "Département"]].drop_duplicates().dropna().itertuples(index=False, name=None):
-        if (nom, dept) in lookup:
+    if has_departement:
+        lookup = _fetch_combo_lookup(cursor, "responsable", ["NomResponsable", "Departement"], "Responsable_ID")
+        for nom, dept in df[["Responsable", "Département"]].drop_duplicates().dropna().itertuples(index=False, name=None):
+            if (nom, dept) in lookup:
+                continue
+            cursor.execute(
+                "INSERT INTO `responsable` (`Responsable_ID`,`NomResponsable`,`Departement`) VALUES (%s,%s,%s)",
+                (next_id, nom, dept),
+            )
+            lookup[(nom, dept)] = next_id
+            next_id += 1
+            inserted += 1
+        if inserted:
+            log.append(f"✓ {inserted} responsable(s) ajouté(s)")
+        return lookup
+
+    # Fallback for minimal schema: table has only NomResponsable.
+    by_name = _fetch_lookup(cursor, "responsable", "NomResponsable", "Responsable_ID")
+    for nom in df["Responsable"].dropna().drop_duplicates():
+        if nom in by_name:
             continue
         cursor.execute(
-            "INSERT INTO `responsable` (`Responsable_ID`,`NomResponsable`,`Departement`) VALUES (%s,%s,%s)",
-            (next_id, nom, dept),
+            "INSERT INTO `responsable` (`Responsable_ID`,`NomResponsable`) VALUES (%s,%s)",
+            (next_id, nom),
         )
-        lookup[(nom, dept)] = next_id
+        by_name[nom] = next_id
         next_id += 1
         inserted += 1
 
+    tuple_lookup = {}
+    for nom, dept in df[["Responsable", "Département"]].drop_duplicates().dropna().itertuples(index=False, name=None):
+        rid = by_name.get(nom)
+        if rid is not None:
+            tuple_lookup[(nom, dept)] = rid
+
     if inserted:
-        log.append(f"✓ {inserted} responsable(s) ajouté(s)")
-    return lookup
+        log.append(f"✓ {inserted} responsable(s) ajouté(s) (schéma minimal)")
+    return tuple_lookup
 
 
 def _ensure_clientfournisseur(cursor, df, log) -> dict:
     lookup = _fetch_lookup(cursor, "clientfournisseur", "NomClientFournisseur", "ClientFournisseur_ID")
     next_id = _next_id(cursor, "clientfournisseur", "ClientFournisseur_ID")
+    columns = _table_columns(cursor, "clientfournisseur")
+    has_type = "Type" in columns
     inserted = 0
 
     for nom, ttype in df[["Client_Fournisseur", "TypeTransaction"]].drop_duplicates().dropna().itertuples(index=False, name=None):
         if nom in lookup:
             continue
         cf_type = "Client" if str(ttype).strip().lower() == "revenu" else "Fournisseur"
-        cursor.execute(
-            "INSERT INTO `clientfournisseur` (`ClientFournisseur_ID`,`NomClientFournisseur`,`Type`) VALUES (%s,%s,%s)",
-            (next_id, nom, cf_type),
-        )
+        if has_type:
+            cursor.execute(
+                "INSERT INTO `clientfournisseur` (`ClientFournisseur_ID`,`NomClientFournisseur`,`Type`) VALUES (%s,%s,%s)",
+                (next_id, nom, cf_type),
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO `clientfournisseur` (`ClientFournisseur_ID`,`NomClientFournisseur`) VALUES (%s,%s)",
+                (next_id, nom),
+            )
         lookup[nom] = next_id
         next_id += 1
         inserted += 1
@@ -757,6 +855,8 @@ def _ensure_clientfournisseur(cursor, df, log) -> dict:
 def _ensure_projets(cursor, df, log) -> dict:
     lookup = _fetch_lookup(cursor, "projet", "NomProjet", "Projet_ID")
     next_id = _next_id(cursor, "projet", "Projet_ID")
+    columns = _table_columns(cursor, "projet")
+    has_dates = "DateDebut" in columns and "DateFin" in columns
     inserted = 0
 
     grouped = df.groupby("Projet")["Date"].agg(DateDebut="min", DateFin="max").reset_index()
@@ -767,10 +867,16 @@ def _ensure_projets(cursor, df, log) -> dict:
 
         d1 = pd.to_datetime(row.DateDebut).strftime("%Y-%m-%d") if pd.notna(row.DateDebut) else None
         d2 = pd.to_datetime(row.DateFin).strftime("%Y-%m-%d") if pd.notna(row.DateFin) else None
-        cursor.execute(
-            "INSERT INTO `projet` (`Projet_ID`,`NomProjet`,`DateDebut`,`DateFin`) VALUES (%s,%s,%s,%s)",
-            (next_id, nom, d1, d2),
-        )
+        if has_dates:
+            cursor.execute(
+                "INSERT INTO `projet` (`Projet_ID`,`NomProjet`,`DateDebut`,`DateFin`) VALUES (%s,%s,%s,%s)",
+                (next_id, nom, d1, d2),
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO `projet` (`Projet_ID`,`NomProjet`) VALUES (%s,%s)",
+                (next_id, nom),
+            )
         lookup[nom] = next_id
         next_id += 1
         inserted += 1
@@ -781,12 +887,7 @@ def _ensure_projets(cursor, df, log) -> dict:
 
 
 def _load_transactions(cursor, df, maps, replace_existing, log) -> dict:
-    if replace_existing:
-        cursor.execute("DELETE FROM `transactions`")
-        next_id = 1
-        log.append("✓ Table transactions vidée avant rechargement")
-    else:
-        next_id = _next_id(cursor, "transactions", "Transaction_ID")
+    next_id = 1 if replace_existing else _next_id(cursor, "transactions", "Transaction_ID")
 
     rows = []
     skipped_by_reason = {
@@ -799,37 +900,72 @@ def _load_transactions(cursor, df, maps, replace_existing, log) -> dict:
         "missing_dim_projet": 0,
     }
     rejected_records = []
+    cols = list(df.columns)
 
-    for _, row in df.iterrows():
-        date_key = pd.to_datetime(row["Date"]).strftime("%Y-%m-%d")
-        dept = row["Département"]
-        dim_map = {
-            "missing_dim_date": maps["date"].get(date_key),
-            "missing_dim_departement": maps["departement"].get(dept),
-            "missing_dim_typetransaction": maps["typetransaction"].get(row["TypeTransaction"]),
-            "missing_dim_typedepense": maps["typedepense"].get(row["TypeDépense"]),
-            "missing_dim_responsable": maps["responsable"].get((row["Responsable"], dept)),
-            "missing_dim_clientfournisseur": maps["clientfournisseur"].get(row["Client_Fournisseur"]),
-            "missing_dim_projet": maps["projet"].get(row["Projet"]),
+    date_keys = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    dep_values = df["Département"]
+    responsable_keys = list(zip(df["Responsable"], dep_values))
+
+    date_ids = date_keys.map(maps["date"]).tolist()
+    dep_ids = dep_values.map(maps["departement"]).tolist()
+    tx_type_ids = df["TypeTransaction"].map(maps["typetransaction"]).tolist()
+    expense_type_ids = df["TypeDépense"].map(maps["typedepense"]).tolist()
+    responsable_ids = pd.Series(responsable_keys, index=df.index).map(maps["responsable"]).tolist()
+    cf_ids = df["Client_Fournisseur"].map(maps["clientfournisseur"]).tolist()
+    project_ids = df["Projet"].map(maps["projet"]).tolist()
+    montant_idx = cols.index("Montant")
+    montant_signe_idx = cols.index("Montant_Signe")
+
+    def _missing_dim(value):
+        if value is None:
+            return True
+        try:
+            return bool(pd.isna(value))
+        except Exception:
+            return False
+
+    for values, date_id, dep_id, tx_type_id, expense_type_id, responsable_id, cf_id, project_id in zip(
+        df.itertuples(index=False, name=None),
+        date_ids,
+        dep_ids,
+        tx_type_ids,
+        expense_type_ids,
+        responsable_ids,
+        cf_ids,
+        project_ids,
+    ):
+        dim_values = {
+            "missing_dim_date": date_id,
+            "missing_dim_departement": dep_id,
+            "missing_dim_typetransaction": tx_type_id,
+            "missing_dim_typedepense": expense_type_id,
+            "missing_dim_responsable": responsable_id,
+            "missing_dim_clientfournisseur": cf_id,
+            "missing_dim_projet": project_id,
         }
 
-        missing_reasons = [reason for reason, value in dim_map.items() if value is None]
+        missing_reasons = [reason for reason, value in dim_values.items() if _missing_dim(value)]
         if missing_reasons:
             for reason in missing_reasons:
                 skipped_by_reason[reason] += 1
-            rejected = row.to_dict()
+            rejected = {col: val for col, val in zip(cols, values)}
             rejected["reject_reason"] = "|".join(missing_reasons)
             rejected["reject_stage"] = "load_dimensions"
             rejected_records.append(rejected)
             continue
 
-        ids = tuple(dim_map.values())
         rows.append(
             (
                 next_id,
-                *[int(i) for i in ids],
-                round(float(row["Montant"]), 3),
-                round(float(row["Montant_Signe"]), 3),
+                int(date_id),
+                int(dep_id),
+                int(tx_type_id),
+                int(expense_type_id),
+                int(responsable_id),
+                int(cf_id),
+                int(project_id),
+                round(float(values[montant_idx]), 3),
+                round(float(values[montant_signe_idx]), 3),
             )
         )
         next_id += 1
@@ -860,6 +996,41 @@ def _load_transactions(cursor, df, maps, replace_existing, log) -> dict:
     }
 
 
+def _clear_transaction_star_schema(cursor, log):
+    tables = [
+        "transactions",
+        "date",
+        "departement",
+        "typetransaction",
+        "typedepense",
+        "responsable",
+        "clientfournisseur",
+        "projet",
+    ]
+    try:
+        cursor.execute("SET FOREIGN_KEY_CHECKS=0")
+    except Exception:
+        pass
+
+    for table_name in tables:
+        try:
+            cursor.execute(f"DELETE FROM `{table_name}`")
+            try:
+                cursor.execute(f"ALTER TABLE `{table_name}` AUTO_INCREMENT = 1")
+            except Exception:
+                pass
+        except Exception as exc:
+            log.append(f"⚠ Échec purge table {table_name}: {exc}")
+            continue
+
+    try:
+        cursor.execute("SET FOREIGN_KEY_CHECKS=1")
+    except Exception:
+        pass
+
+    log.append("✓ Tables transactions et dimensions liées vidées et auto-increment réinitialisé avant rechargement")
+
+
 def run_generic_etl(file_path: str, replace_existing: bool = True) -> dict:
     path = Path(file_path)
     log = []
@@ -877,6 +1048,8 @@ def run_generic_etl(file_path: str, replace_existing: bool = True) -> dict:
         conn = _connect()
         try:
             with conn.cursor() as cursor:
+                if replace_existing:
+                    _clear_transaction_star_schema(cursor, log)
                 maps = {
                     "date": _ensure_date_dimension(cursor, df_clean, log),
                     "departement": _ensure_departements(cursor, df_clean, log),

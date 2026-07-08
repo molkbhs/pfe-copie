@@ -219,14 +219,6 @@
             </div>
         </div>
 
-        <div class="card bg-dark text-info p-3 mb-4 d-none" id="etlLogCard">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0 text-uppercase fw-bold" style="letter-spacing: 0.1em">Logs du Processus</h6>
-                <span class="badge bg-info text-dark">Console Python</span>
-            </div>
-            <pre id="etlLogBox" style="font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; max-height: 200px; overflow-y: auto; margin-bottom: 0;"></pre>
-        </div>
-
         <div id="statsContainer" class="d-none">
             <div class="row g-4 mb-4">
                 <div class="col-md-3">
@@ -270,7 +262,7 @@
                                 <li><button class="dropdown-item" type="button" id="exportFilteredJsonBtn"><i class="bi bi-filetype-json me-2"></i>Exporter en JSON</button></li>
                             </ul>
                         </div>
-                        <a href="charts.html" class="btn btn-sm btn-primary"><i class="bi bi-bar-chart-line-fill me-1"></i>Voir Analytics</a>
+                        <a href="charts.html" class="btn btn-sm btn-primary"><i class="bi bi-bar-chart-line-fill me-1"></i>Voir Analyse</a>
                     </div>
                 </div>
 
@@ -432,8 +424,6 @@
     const clearBtn = document.getElementById('clearBtn');
     const etlLaunchZone = document.getElementById('etlLaunchZone');
     const etlStatus = document.getElementById('etlStatusBar');
-    const logCard = document.getElementById('etlLogCard');
-    const logBox = document.getElementById('etlLogBox');
     const statsContainer = document.getElementById('statsContainer');
     const rowCount = document.getElementById('rowCount');
     const colCount = document.getElementById('colCount');
@@ -502,8 +492,6 @@
         fileInput.value = '';
         etlLaunchZone.style.display = 'none';
         etlStatus.style.display = 'none';
-        logCard.classList.add('d-none');
-        logBox.textContent = '';
         statsContainer.classList.add('d-none');
         document.getElementById('beforeTableContent').innerHTML = '';
         document.getElementById('afterTableContent').innerHTML = '';
@@ -938,8 +926,6 @@ async function fetchHistory() {
         launchBtn.disabled = true;
         document.getElementById('etlLoader').classList.remove('d-none');
         etlStatus.style.display = 'block';
-        logCard.classList.add('d-none');
-        logBox.textContent = '';
         resetSteps();
         activateStep('step1');
 
@@ -964,9 +950,6 @@ async function fetchHistory() {
             activateStep('step2');
             setTimeout(() => activateStep('step3'), 250);
             setTimeout(() => activateStep('step4'), 500);
-
-            logCard.classList.remove('d-none');
-            logBox.textContent = Array.isArray(data.log) ? data.log.join('\n') : 'Traitement terminé avec succès.';
 
             if (data.stats) {
                 rowCount.textContent = data.stats.lignes ?? 0;

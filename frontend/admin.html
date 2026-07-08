@@ -227,6 +227,29 @@
 
         .modal-footer-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
 
+        @media print {
+            body * {
+                visibility: hidden !important;
+            }
+            .modal-overlay.open, .modal-overlay.open * {
+                visibility: visible !important;
+            }
+            .modal-overlay.open {
+                position: absolute;
+                inset: 0;
+                background: #fff !important;
+            }
+            .modal-box {
+                box-shadow: none !important;
+                background: #fff !important;
+                width: auto !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                padding: 16px !important;
+            }
+        }
+
         /* ── Inline alert ── */
         .inline-alert { font-size: 0.83rem; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; display: none; }
         .inline-alert.success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
@@ -432,43 +455,91 @@
 
     <div class="main-card history-card">
         <div class="card-header-bar">
-            <span class="cht">Historique des rapports</span>
+            <span class="cht">Historique des imports</span>
             <div class="search-row">
                 <span class="text-muted" style="margin-left:6px;"><i class="bi bi-search"></i></span>
-                <input class="search-input" type="text" id="reportHistorySearch" placeholder="Rechercher rapport ou email...">
-                <select class="filter-sel" id="reportHistoryFormat">
-                    <option value="">Tous les formats</option>
-                    <option value="pdf">PDF</option>
-                    <option value="png">PNG</option>
-                    <option value="jpg">JPG</option>
-                    <option value="csv">CSV</option>
-                    <option value="docx">DOCX</option>
+                <input class="search-input" type="text" id="importHistorySearch" placeholder="Rechercher fichier, utilisateur ou email...">
+                <select class="filter-sel" id="importHistoryStatus">
+                    <option value="">Tous les statuts</option>
+                    <option value="succes">Succès</option>
+                    <option value="partiel">Partiel</option>
+                    <option value="echec">Échec</option>
                 </select>
             </div>
         </div>
 
         <div style="overflow-x:auto">
-            <table class="users-table report-history-table" id="reportHistoryTable">
+            <table class="users-table report-history-table" id="importHistoryTable">
                 <thead>
                     <tr>
-                        <th>Rapport</th>
-                        <th>Type</th>
-                        <th>Format</th>
-                        <th>Généré par</th>
+                        <th>Fichier importé</th>
+                        <th>Importé par</th>
                         <th>Email</th>
-                        <th>Date de génération</th>
+                        <th>Lignes</th>
+                        <th>Erreurs</th>
+                        <th>Statut</th>
+                        <th>Date d'import</th>
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody id="reportHistoryBody">
-                    <tr class="loading-row"><td colspan="7">Chargement...</td></tr>
+                <tbody id="importHistoryBody">
+                    <tr class="loading-row"><td colspan="8">Chargement...</td></tr>
                 </tbody>
             </table>
         </div>
 
         <div class="pagination-bar">
-            <span id="reportHistoryInfo"></span>
-            <div class="page-btns" id="reportHistoryPageBtns"></div>
+            <span id="importHistoryInfo"></span>
+            <div class="page-btns" id="importHistoryPageBtns"></div>
+        </div>
+    </div>
+
+    <!-- ══ Modal Afficher détails import ══ -->
+    <div class="modal-overlay" id="modalImportDetails">
+        <div class="modal-box" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <h5>Rapport d'import</h5>
+            <p class="msub" id="importDetailsSub">Détails du fichier importé</p>
+            
+            <div style="background: var(--bg-soft); padding: 16px; border-radius: 10px; margin-bottom: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.85rem;">
+                    <div>
+                        <span style="color: var(--text-muted); font-weight: 600;">Fichier</span><br>
+                        <span id="importDetailsFilename" style="font-weight: 700;">—</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); font-weight: 600;">Statut</span><br>
+                        <span id="importDetailsStatus" class="status-badge">—</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); font-weight: 600;">Date d'import</span><br>
+                        <span id="importDetailsDate" style="font-weight: 700;">—</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); font-weight: 600;">Importé par</span><br>
+                        <span id="importDetailsUser" style="font-weight: 700;">—</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); font-weight: 600;">Lignes traitées</span><br>
+                        <span id="importDetailsRows" style="font-weight: 700; color: #059669;">—</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); font-weight: 600;">Erreurs</span><br>
+                        <span id="importDetailsErrors" style="font-weight: 700; color: #991b1b;">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <span style="color: var(--text-muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase;">Détails du traitement</span>
+                <div id="importDetailsLog" style="background: var(--bg-soft); padding: 12px; border-radius: 10px; font-size: 0.82rem; max-height: 250px; overflow-y: auto; margin-top: 8px; line-height: 1.5;"></div>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-outline-secondary" onclick="closeImportModal()">Fermer</button>
+                <button class="btn btn-primary" onclick="printImportReport()" type="button">
+                    <i class="bi bi-printer me-1"></i>Imprimer
+                </button>
+            </div>
         </div>
     </div>
 
@@ -614,6 +685,9 @@ const LOGIN_HISTORY_LIMIT = 10;
 let reportHistoryPage = 1;
 let reportHistoryTotal = 0;
 const REPORT_HISTORY_LIMIT = 10;
+let importHistoryPage = 1;
+let importHistoryTotal = 0;
+const IMPORT_HISTORY_LIMIT = 10;
 let auditLogPage = 1;
 let auditLogTotal = 0;
 const AUDIT_LOG_LIMIT = 10;
@@ -630,7 +704,7 @@ const AUDIT_LOG_LIMIT = 10;
     });
     await loadUsers();
     await loadLoginHistory(1);
-    await loadReportHistory(1);
+    await loadImportHistory(1);
     await loadAuditLogs(1);
 
     const lhSearch = document.getElementById('loginHistorySearch');
@@ -642,13 +716,13 @@ const AUDIT_LOG_LIMIT = 10;
         lhStatus.addEventListener('change', () => loadLoginHistory(1));
     }
 
-    const rhSearch = document.getElementById('reportHistorySearch');
-    const rhFormat = document.getElementById('reportHistoryFormat');
-    if (rhSearch) {
-        rhSearch.addEventListener('input', () => loadReportHistory(1));
+    const ihSearch = document.getElementById('importHistorySearch');
+    const ihStatus = document.getElementById('importHistoryStatus');
+    if (ihSearch) {
+        ihSearch.addEventListener('input', () => loadImportHistory(1));
     }
-    if (rhFormat) {
-        rhFormat.addEventListener('change', () => loadReportHistory(1));
+    if (ihStatus) {
+        ihStatus.addEventListener('change', () => loadImportHistory(1));
     }
 
     const auditSearch = document.getElementById('auditLogSearch');
@@ -662,6 +736,16 @@ const AUDIT_LOG_LIMIT = 10;
     }
     if (auditStatus) {
         auditStatus.addEventListener('change', () => loadAuditLogs(1));
+    }
+
+    // Close import details modal when clicking overlay
+    const importDetailsModal = document.getElementById('modalImportDetails');
+    if (importDetailsModal) {
+        importDetailsModal.addEventListener('click', (e) => {
+            if (e.target === importDetailsModal) {
+                closeImportModal();
+            }
+        });
     }
 })();
 
@@ -818,16 +902,16 @@ function goLoginHistoryPage(page) {
     loadLoginHistory(page);
 }
 
-async function loadReportHistory(page = 1) {
-    reportHistoryPage = Math.max(1, Number(page) || 1);
-    const body = document.getElementById('reportHistoryBody');
+async function loadImportHistory(page = 1) {
+    importHistoryPage = Math.max(1, Number(page) || 1);
+    const body = document.getElementById('importHistoryBody');
     if (body) {
-        body.innerHTML = '<tr class="loading-row"><td colspan="7">Chargement...</td></tr>';
+        body.innerHTML = '<tr class="loading-row"><td colspan="8">Chargement...</td></tr>';
     }
 
-    const q = encodeURIComponent((document.getElementById('reportHistorySearch')?.value || '').trim());
-    const format = encodeURIComponent((document.getElementById('reportHistoryFormat')?.value || '').trim());
-    const url = `/api/admin/reports-history?page=${reportHistoryPage}&limit=${REPORT_HISTORY_LIMIT}&search=${q}&format=${format}`;
+    const q = encodeURIComponent((document.getElementById('importHistorySearch')?.value || '').trim());
+    const status = encodeURIComponent((document.getElementById('importHistoryStatus')?.value || '').trim());
+    const url = `/api/admin/import-history?page=${importHistoryPage}&limit=${IMPORT_HISTORY_LIMIT}&search=${q}&status=${status}`;
 
     try {
         const res = await fetch(url, { headers: authHeaders() });
@@ -835,37 +919,37 @@ async function loadReportHistory(page = 1) {
         if (!res.ok) throw new Error(payload.error || `HTTP ${res.status}`);
 
         const items = Array.isArray(payload.items) ? payload.items : [];
-        reportHistoryTotal = Number(payload.total || 0);
-        renderReportHistory(items);
+        importHistoryTotal = Number(payload.total || 0);
+        renderImportHistory(items);
     } catch (e) {
-        reportHistoryTotal = 0;
+        importHistoryTotal = 0;
         if (body) {
-            body.innerHTML = `<tr><td colspan="7">
+            body.innerHTML = `<tr><td colspan="8">
                 <div class="empty-state">
                     <div class="es-icon"><i class="bi bi-exclamation-circle"></i></div>
-                    <p>Impossible de charger l'historique des rapports</p>
+                    <p>Impossible de charger l'historique des imports</p>
                 </div>
             </td></tr>`;
         }
-        const info = document.getElementById('reportHistoryInfo');
-        const btns = document.getElementById('reportHistoryPageBtns');
+        const info = document.getElementById('importHistoryInfo');
+        const btns = document.getElementById('importHistoryPageBtns');
         if (info) info.textContent = '0 résultat';
         if (btns) btns.innerHTML = '';
-        showToast(e.message || 'Erreur chargement historique des rapports', true, 'bi-x-circle-fill');
+        showToast(e.message || 'Erreur chargement historique des imports', true, 'bi-x-circle-fill');
     }
 }
 
-function renderReportHistory(items) {
-    const body = document.getElementById('reportHistoryBody');
-    const info = document.getElementById('reportHistoryInfo');
-    const btns = document.getElementById('reportHistoryPageBtns');
+function renderImportHistory(items) {
+    const body = document.getElementById('importHistoryBody');
+    const info = document.getElementById('importHistoryInfo');
+    const btns = document.getElementById('importHistoryPageBtns');
     if (!body || !info || !btns) return;
 
     if (!items.length) {
-        body.innerHTML = `<tr><td colspan="7">
+        body.innerHTML = `<tr><td colspan="8">
             <div class="empty-state">
                 <div class="es-icon"><i class="bi bi-file-earmark-text"></i></div>
-                <p>Aucun rapport trouvé</p>
+                <p>Aucun import trouvé</p>
             </div>
         </td></tr>`;
         info.textContent = '0 résultat';
@@ -874,56 +958,188 @@ function renderReportHistory(items) {
     }
 
     body.innerHTML = items.map((item) => {
-        const fullname = `${item.firstname || ''} ${item.lastname || ''}`.trim() || 'Utilisateur inconnu';
-        const format = String(item.format || '-').toUpperCase();
-        const date = formatDateTime(item.date_generation);
-        const name = item.nom_rapport || `Rapport #${item.id_rapport || ''}`;
-        const type = item.type_rapport || 'financier';
-        const id = Number(item.id_rapport || 0);
+        const fullname = item.importe_par || 'Utilisateur inconnu';
+        const email = item.email || '-';
+        const lignes = Number(item.nb_lignes || 0);
+        const erreurs = Number(item.nb_erreurs || 0);
+        const statut = String(item.statut || 'succes').toLowerCase();
+        const date = formatDateTime(item.date_import);
+        const id = Number(item.id || 0);
+
+        let statusBadge = '';
+        if (statut === 'succes') {
+            statusBadge = '<span class="badge bg-success">Succès</span>';
+        } else if (statut === 'partiel') {
+            statusBadge = '<span class="badge bg-warning">Partiel</span>';
+        } else if (statut === 'echec') {
+            statusBadge = '<span class="badge bg-danger">Échec</span>';
+        } else {
+            statusBadge = '<span class="badge bg-secondary">' + esc(statut) + '</span>';
+        }
 
         return `
         <tr>
-            <td>${esc(name)}</td>
-            <td>${esc(type)}</td>
-            <td><span class="format-badge">${esc(format)}</span></td>
+            <td>${esc(item.nom_fichier || '-')}</td>
             <td>${esc(fullname)}</td>
-            <td class="email-cell">${esc(item.email || '-')}</td>
+            <td class="email-cell">${esc(email)}</td>
+            <td>${lignes}</td>
+            <td>${erreurs}</td>
+            <td>${statusBadge}</td>
             <td>${esc(date)}</td>
             <td>
-                <button class="btn btn-outline-secondary btn-sm" style="border-radius:8px" onclick="downloadReport(${id})">
-                    <i class="bi bi-download me-1"></i>Télécharger
+                <button class="btn btn-outline-secondary btn-sm" style="border-radius:8px" onclick="viewImportDetails(${id})">
+                    <i class="bi bi-eye me-1"></i>Voir
                 </button>
             </td>
         </tr>`;
     }).join('');
 
-    renderReportHistoryPagination();
+    renderImportHistoryPagination();
 }
 
-function renderReportHistoryPagination() {
-    const info = document.getElementById('reportHistoryInfo');
-    const btns = document.getElementById('reportHistoryPageBtns');
+function renderImportHistoryPagination() {
+    const info = document.getElementById('importHistoryInfo');
+    const btns = document.getElementById('importHistoryPageBtns');
     if (!info || !btns) return;
 
-    const total = reportHistoryTotal;
-    const pages = Math.max(1, Math.ceil(total / REPORT_HISTORY_LIMIT));
-    const start = total ? ((reportHistoryPage - 1) * REPORT_HISTORY_LIMIT + 1) : 0;
-    const end = total ? Math.min(reportHistoryPage * REPORT_HISTORY_LIMIT, total) : 0;
+    const total = importHistoryTotal;
+    const pages = Math.max(1, Math.ceil(total / IMPORT_HISTORY_LIMIT));
+    const start = total ? ((importHistoryPage - 1) * IMPORT_HISTORY_LIMIT + 1) : 0;
+    const end = total ? Math.min(importHistoryPage * IMPORT_HISTORY_LIMIT, total) : 0;
 
-    info.textContent = total ? `${start}-${end} sur ${total} rapports` : '0 résultat';
+    info.textContent = total ? `${start}-${end} sur ${total} imports` : '0 résultat';
 
-    let html = `<button class="page-btn" onclick="goReportHistoryPage(${reportHistoryPage - 1})" ${reportHistoryPage <= 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>`;
+    let html = `<button class="page-btn" onclick="goImportHistoryPage(${importHistoryPage - 1})" ${importHistoryPage <= 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>`;
     for (let i = 1; i <= pages; i++) {
-        html += `<button class="page-btn ${i === reportHistoryPage ? 'active' : ''}" onclick="goReportHistoryPage(${i})">${i}</button>`;
+        html += `<button class="page-btn ${i === importHistoryPage ? 'active' : ''}" onclick="goImportHistoryPage(${i})">${i}</button>`;
     }
-    html += `<button class="page-btn" onclick="goReportHistoryPage(${reportHistoryPage + 1})" ${reportHistoryPage >= pages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>`;
+    html += `<button class="page-btn" onclick="goImportHistoryPage(${importHistoryPage + 1})" ${importHistoryPage >= pages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>`;
     btns.innerHTML = html;
 }
 
-function goReportHistoryPage(page) {
-    const pages = Math.max(1, Math.ceil(reportHistoryTotal / REPORT_HISTORY_LIMIT));
+function goImportHistoryPage(page) {
+    const pages = Math.max(1, Math.ceil(importHistoryTotal / IMPORT_HISTORY_LIMIT));
     if (page < 1 || page > pages) return;
-    loadReportHistory(page);
+    loadImportHistory(page);
+}
+
+// Store all imports for quick access
+let allImportsByID = {};
+
+async function viewImportDetails(id) {
+    if (!id) return;
+    
+    try {
+        const res = await fetch(`${window.location.origin || "http://127.0.0.1:5000"}/api/admin/import-details/${id}`, {
+            headers: authHeaders()
+        });
+        
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        
+        const data = await res.json();
+        if (data.success) {
+            displayImportDetailsModal(data);
+        } else {
+            showToast(data.error || 'Impossible de charger les détails', true, 'bi-x-circle-fill');
+        }
+    } catch (e) {
+        showToast(e.message || 'Impossible de charger les détails', true, 'bi-x-circle-fill');
+    }
+}
+
+async function debugTokenStatus() {
+    const user = window.UICore?.getUser?.() || window.getUser?.();
+    console.log('Current user from storage:', user);
+    
+    if (!user || !user.token) {
+        console.error('No token found in user storage');
+        showToast('Erreur: Pas de token trouvé. Reconnectez-vous.', true, 'bi-x-circle-fill');
+        return;
+    }
+    
+    console.log('Token (first 50 chars):', user.token.substring(0, 50) + '...');
+    
+    try {
+        const res = await fetch(`${window.location.origin || "http://127.0.0.1:5000"}/api/debug/token-status`, {
+            headers: authHeaders()
+        });
+        
+        const data = await res.json();
+        console.log('Token validation response:', data);
+        
+        if (res.ok && data.success) {
+            showToast(`Token valide jusqu'à ${new Date(data.exp_time).toLocaleString()}`, false, 'bi-check-circle-fill');
+        } else {
+            showToast(`Token invalide: ${data.error}`, true, 'bi-x-circle-fill');
+        }
+    } catch (e) {
+        console.error('Token debug error:', e);
+        showToast('Erreur lors de la vérification du token', true, 'bi-x-circle-fill');
+    }
+}
+
+// Make debug function available in console
+window.debugTokenStatus = debugTokenStatus;
+console.log('Debug function added: use debugTokenStatus() in console to check token validity');
+
+function displayImportDetailsModal(data) {
+    const modal = document.getElementById('modalImportDetails');
+    if (!modal) return;
+    
+    // Fill in the details
+    document.getElementById('importDetailsFilename').textContent = data.nom_fichier || '—';
+    document.getElementById('importDetailsDate').textContent = data.date_import || '—';
+    document.getElementById('importDetailsUser').textContent = 
+        `${data.firstname || ''} ${data.lastname || ''}`.trim() || data.importe_par || '—';
+    document.getElementById('importDetailsRows').textContent = data.nb_lignes || '0';
+    document.getElementById('importDetailsErrors').textContent = data.nb_erreurs || '0';
+    
+    // Status badge
+    const statusEl = document.getElementById('importDetailsStatus');
+    const statut = String(data.statut || 'succes').toLowerCase();
+    let statusClass = 'success';
+    let statusLabel = 'Succès';
+    if (statut === 'partiel') {
+        statusClass = 'warning';
+        statusLabel = 'Partiel';
+    } else if (statut === 'echec') {
+        statusClass = 'failed';
+        statusLabel = 'Échec';
+    }
+    statusEl.textContent = statusLabel;
+    statusEl.className = `status-badge ${statusClass}`;
+    
+    // Details log
+    const logEl = document.getElementById('importDetailsLog');
+    const details = data.details || [];
+    if (Array.isArray(details) && details.length > 0) {
+        logEl.innerHTML = details.map(msg => {
+            const line = String(msg).trim();
+            if (!line) return '';
+            // Try to detect error vs info messages
+            const isError = line.toLowerCase().includes('error') || 
+                           line.toLowerCase().includes('échec') || 
+                           line.toLowerCase().includes('failed');
+            const color = isError ? 'color: #991b1b;' : 'color: var(--text);';
+            return `<div style="${color}">${esc(line)}</div>`;
+        }).join('');
+    } else {
+        logEl.innerHTML = '<div style="color: var(--text-muted);">Aucun détail disponible</div>';
+    }
+    
+    modal.classList.add('open');
+}
+
+function closeImportModal() {
+    const modal = document.getElementById('modalImportDetails');
+    if (modal) modal.classList.remove('open');
+}
+
+function printImportReport() {
+    window.print();
 }
 
 async function downloadReport(id) {

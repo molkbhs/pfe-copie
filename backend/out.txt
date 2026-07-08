@@ -1,0 +1,79 @@
+================================================================================
+[TEST] End-to-End ETL -> KPI Pipeline
+================================================================================
+[STEP 1] Created test CSV: test_input.csv
+  Rows: 5 (2 revenues, 3 depenses)
+
+[STEP 2] Running ETL on test_input.csv...
+  ETL Success: True
+  Rows processed: 5
+  Sample after_row (row 0):
+    Keys: ['Date', 'DepartementID', 'Département', 'TypeTransaction', 'TypeDépense', 'Montant', 'Montant_Signe', 'Responsable', 'Client_Fournisseur', 'Projet', 'Année', 'Mois', 'Trimestre', 'AnnéeFiscale', 'JourSemaine', 'Semaine', 'JourAnnée', 'YearMonth']
+    Data: {
+      "Date": "2026-01-01T00:00:00",
+      "DepartementID": null,
+      "D\u00e9partement": "IT",
+      "TypeTransaction": "Revenu",
+      "TypeD\u00e9pense": "N/A",
+      "Montant": 1000.0,
+      "Montant_Signe": 1000.0,
+      "Responsable": "Sam",
+      "Client_Fournisseur": "ClientA",
+      "Projet": "Proj1",
+      "Ann\u00e9e": 2026,
+      "Mois": 1,
+      "Trimestre": 1,
+      "Ann\u00e9eFiscale": 2026,
+      "JourSemaine": "Thursday",
+      "Semaine": 1,
+      "JourAnn\u00e9e": 1,
+      "YearMonth": "2026-01"
+}
+
+[STEP 3] Normalizing rows for analytics...
+  Row 1 normalized: dept=IT, tx=Revenu, amount=1000.0
+  Row 2 normalized: dept=HR, tx=Depense, amount=-200.0
+  Row 3 normalized: dept=HR, tx=Depense, amount=-150.0
+  Row 4 normalized: dept=Sales, tx=Revenu, amount=2000.0
+  Row 5 normalized: dept=Sales, tx=Depense, amount=-300.0
+
+[STEP 4] Checking N/A handling...
+  Rows with type_depense='Non classée (N/A)': 3
+    - IT | Revenu | Montant_Signe=1000.0
+    - HR | Depense | Montant_Signe=-150.0
+    - Sales | Revenu | Montant_Signe=2000.0
+
+[STEP 5] Building KPIs from normalized rows...
+  Total KPIs: 21
+
+  Global KPIs:
+    CA_Total: 3650.0
+    Solde_Net: 2350.0
+    Revenus: 3000.0
+    Dépenses: 650.0
+    Nb_Transactions: 5
+    Valeur_Moyenne: 730.0
+    Ratio_Dep_Rev: 21.67
+    CA_IT: 1000.0
+    Solde_IT: 1000.0
+    CA_HR: 0
+    Solde_HR: -350.0
+    CA_Sales: 2000.0
+    Solde_Sales: 1700.0
+    Vol_Revenu: 3000.0
+    Vol_Depense: 650.0
+    Dep_Formation: 200.0
+    Dep_Non classée (N/A): 150.0
+    Dep_Transport: 300.0
+
+  Expense Type KPIs (3 found):
+    Dep_Formation: 200.0
+    Dep_Non classée (N/A): 150.0
+    Dep_Transport: 300.0
+
+[STEP 6] Manual Validation:
+  Expected revenues: 1000 + 2000 = 3000
+  Expected expenses: 200 + 150 + 300 = 650
+  Expected net: 3000 - 650 = 2350
+  Calculated CA_Total: 3650.0
+  Calculated Revenus: 3000.0

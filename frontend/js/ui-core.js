@@ -191,10 +191,20 @@ window.UICore = {
 
     isUnauthorizedResponse: function(response, payload) {
         if (response && (response.status === 401 || response.status === 403)) return true;
-        const text = String(
-            payload?.error || payload?.message || payload?.detail || ''
-        ).toLowerCase();
-        return text.includes('auth') || text.includes('autoris');
+        const code = String(payload?.code || payload?.error_code || '').toLowerCase().trim();
+        if (code && ['auth_required', 'unauthorized', 'forbidden', 'invalid_token', 'token_expired'].includes(code)) {
+            return true;
+        }
+        const text = String(payload?.error || payload?.message || payload?.detail || '').toLowerCase();
+        return (
+            text.includes('auth requis') ||
+            text.includes('non autoris') ||
+            text.includes('token invalide') ||
+            text.includes('token expire') ||
+            text.includes('session expir') ||
+            text.includes('unauthorized') ||
+            text.includes('forbidden')
+        );
     },
 
     bindLogout: function(options = {}) {

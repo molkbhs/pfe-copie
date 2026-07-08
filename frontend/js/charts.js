@@ -20,12 +20,14 @@
     computed: null,
     analyticsReady: true,
     analyticsMessage: '',
+    decisionKpis: [],
     activeFocus: 'global',
     tableMode: 'kpi',
     tableSort: { key: 'valeur', dir: 'desc' },
     tablePage: 1,
     pageSize: 12,
     charts: {},
+    analyticsImportedAt: null,
     lastLoadedAt: null
   };
 
@@ -72,6 +74,8 @@
   const defaultEmptyMessage = 'Aucun import disponible. Veuillez importer un fichier depuis la page Data Import.';
   const sessionExpiredMessage = 'Session expirée. Veuillez vous reconnecter.';
   const FORCE_REFRESH_KEY = 'finova_analytics_force_refresh';
+  const ANALYSIS_LOAD_ERROR_PRIMARY = 'Impossible de charger les résultats pour le moment. Veuillez vérifier vos données importées puis réessayer.';
+  const ANALYSIS_LOAD_ERROR_SECONDARY = 'Le traitement n’a pas pu être terminé. Vous pouvez relancer l’analyse dans quelques instants.';
   const ANALYSIS_VIEWS = {
     global: {
       title: 'Vue globale',
@@ -113,8 +117,87 @@
       visibleCards: ['executive-trend', 'expense-breakdown', 'transaction-mix', 'department-share', 'risk-signals', 'top-contributors', 'bottom-contributors']
     }
   };
+  // Clés de cache pour accélérer le rechargement de la page analytics
+  // après un import déjà traité avec succès.
+  const ANALYTICS_CACHE_KEY = 'finova_analytics_cache';
+  const ANALYTICS_IMPORT_CACHE_KEY = 'finova_last_import_id';
+  const ANALYTICS_CACHE_VERSION = 1;
+  const ANALYTICS_CACHE_MAX_BYTES = 4_000_000;
+
   let fetchSequence = 0;
   let logoutInProgress = false;
+  let analysisLoadingHideTimer = null;
+
+  function setAnalysisLoadingState({
+    visible = true,
+    tone = 'info',
+    spinning = true,
+    title = '',
+    lines = [],
+  } = {}) {
+    const box = document.getElementById('analysisLoadingState');
+    if (!box) return;
+
+    if (analysisLoadingHideTimer) {
+      window.clearTimeout(analysisLoadingHideTimer);
+      analysisLoadingHideTimer = null;
+    }
+
+    if (!visible) {
+      box.classList.add('d-none');
+      return;
+    }
+
+    const tones = ['alert-info', 'alert-success', 'alert-danger', 'alert-warning'];
+    box.classList.remove('d-none', ...tones);
+    box.classList.add(`alert-${tone}`);
+
+    const spinner = document.getElementById('analysisLoadingSpinner');
+    if (spinner) spinner.classList.toggle('d-none', !spinning);
+
+    const titleEl = document.getElementById('analysisLoadingTitle');
+    if (titleEl) titleEl.textContent = String(title || '');
+
+    const lineEls = [
+      document.getElementById('analysisLoadingLine1'),
+      document.getElementById('analysisLoadingLine2'),
+      document.getElementById('analysisLoadingLine3'),
+    ];
+    lineEls.forEach((el, idx) => {
+      if (!el) return;
+      el.textContent = String(lines[idx] || '');
+      el.classList.toggle('d-none', !lines[idx]);
+    });
+  }
+
+  function hideAnalysisLoadingState(delayMs = 0) {
+    if (analysisLoadingHideTimer) {
+      window.clearTimeout(analysisLoadingHideTimer);
+      analysisLoadingHideTimer = null;
+    }
+    if (!delayMs) {
+      setAnalysisLoadingState({ visible: false });
+      return;
+    }
+    analysisLoadingHideTimer = window.setTimeout(() => {
+      setAnalysisLoadingState({ visible: false });
+    }, delayMs);
+  }
+
+  function isNoImportError(error) {
+    const status = Number(error?.status || 0);
+    const payload = error?.payload || {};
+    const texts = [
+      String(error?.message || ''),
+      String(payload?.error || ''),
+      String(payload?.message || '')
+    ].map((v) => v.toLowerCase());
+    const hasNoImportText = texts.some((t) =>
+      t.includes('aucun import disponible') ||
+      t.includes('veuillez importer un fichier')
+    );
+    return status === 404 && hasNoImportText;
+  }
 
   function resetFilterControls() {
     const defaults = {
@@ -201,6 +284,30 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .trim();
+  }
+
+  const PLACEHOLDER_LABELS = new Set(['n/a', 'na', 'null', 'none', 'inconnu', 'non renseigne', 'non renseigne', 'unknown', 'unspecified', '-']);
+
+  function isPlaceholderLabel(value) {
+    const text = normalizeText(value);
+    return !text || PLACEHOLDER_LABELS.has(text);
+  }
+
+  function cleanChartLabel(value, fallback = '') {
+    const text = String(value ?? '').trim();
+    if (!text) return fallback;
+    return isPlaceholderLabel(text) ? '' : text;
+  }
+
+  function normalizeExpenseTypeLabel(value) {
+    const text = String(value ?? '').trim();
+    if (!text) return 'Non classée (N/A)';
+
+    const normalized = normalizeText(text);
+    if (['n/a', 'na', 'null', 'none', 'inconnu', 'non renseigne', 'unknown', 'unspecified', '-'].includes(normalized)) {
+      return 'Non classée (N/A)';
+    }
+    return text;
   }
 
   function toNum(value) {
@@ -316,7 +423,9 @@
   }
 
   function ensureAuthorized(response, payload) {
-    if (window.UICore?.isUnauthorizedResponse?.(response, payload)) {
+    const status = Number(response?.status || 0);
+    const unauthorized = status === 401 || status === 403;
+    if (unauthorized || window.UICore?.isUnauthorizedResponse?.(response, payload)) {
       const err = new Error(payload?.message || payload?.error || sessionExpiredMessage);
       err.code = 'AUTH_REQUIRED';
       throw err;
@@ -363,6 +472,76 @@
       return false;
     }
     return false;
+  }
+
+  function safeParseJson(value) {
+    try {
+      return JSON.parse(String(value || ''));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function loadAnalyticsCache() {
+    // Essaie de lire le cache local et vérifie qu'il est valide pour
+    // le même import_id que l'import actif.
+    try {
+      const cache = safeParseJson(localStorage.getItem(ANALYTICS_CACHE_KEY));
+      if (!cache || cache.version !== ANALYTICS_CACHE_VERSION) return null;
+      if (!cache.import_id || !Array.isArray(cache.allTx) || !Array.isArray(cache.allKpis)) return null;
+      return cache;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveAnalyticsCache(importId, importedAt = null) {
+    // Enregistre le jeu de données d'analyse dans localStorage pour une
+    // réutilisation rapide lors d'un prochain affichage de la même page.
+    if (!importId || !Array.isArray(state.allTx) || !Array.isArray(state.allKpis)) return;
+    if (!importId || !Array.isArray(state.allTx) || !Array.isArray(state.allKpis)) return;
+    const cache = {
+      version: ANALYTICS_CACHE_VERSION,
+      import_id: importId,
+      imported_at: importedAt || null,
+      saved_at: new Date().toISOString(),
+      analyticsReady: state.analyticsReady,
+      analyticsMessage: state.analyticsMessage,
+      allTx: state.allTx,
+      allKpis: state.allKpis,
+      decisionKpis: state.decisionKpis,
+    };
+
+    try {
+      const payload = JSON.stringify(cache);
+      if (payload.length > ANALYTICS_CACHE_MAX_BYTES) {
+        // On protège localStorage si le cache devient trop lourd.
+        localStorage.removeItem(ANALYTICS_CACHE_KEY);
+        return;
+      }
+      localStorage.setItem(ANALYTICS_CACHE_KEY, payload);
+      localStorage.setItem(ANALYTICS_IMPORT_CACHE_KEY, importId);
+    } catch (_) {
+      try {
+        localStorage.removeItem(ANALYTICS_CACHE_KEY);
+      } catch (_) {}
+    }
+  }
+
+  function applyAnalyticsCache(cache) {
+    // Recharge l'état du dashboard depuis les données mise en cache,
+    // pour afficher le résultat immédiatement sans attendre l'API.
+    if (!cache) return;
+    if (!cache) return;
+    state.allTx = Array.isArray(cache.allTx) ? cache.allTx : [];
+    state.allKpis = Array.isArray(cache.allKpis) ? cache.allKpis : [];
+    state.decisionKpis = Array.isArray(cache.decisionKpis) ? cache.decisionKpis : [];
+    state.analyticsReady = cache.analyticsReady !== false;
+    state.analyticsMessage = cache.analyticsMessage || '';
+    state.analyticsImportedAt = cache.imported_at || null;
+    state.lastLoadedAt = cache.saved_at ? new Date(cache.saved_at) : new Date();
+    populateFilters();
+    refreshPipeline();
   }
 
   async function fetchJson(path, options = {}, requireAuth = true) {
@@ -468,12 +647,12 @@
       annee: toInt(row?.annee ?? row?.Année, 0),
       trimestre: trimestre || null,
       periode_mois: period,
-      departement: row?.departement || row?.Département || 'Non renseigné',
-      type_transaction: row?.type_transaction || row?.TypeTransaction || 'Non renseigné',
-      type_depense: row?.type_depense || row?.TypeDépense || 'Non renseigné',
-      responsable: row?.responsable || row?.Responsable || 'Non renseigné',
-      client_fournisseur: row?.client_fournisseur || row?.Client_Fournisseur || 'Non renseigné',
-      projet: row?.projet || row?.Projet || 'Sans projet'
+      departement: cleanChartLabel(row?.departement || row?.Département),
+      type_transaction: cleanChartLabel(row?.type_transaction || row?.TypeTransaction),
+      type_depense: normalizeExpenseTypeLabel(row?.type_depense || row?.TypeDépense),
+      responsable: cleanChartLabel(row?.responsable || row?.Responsable),
+      client_fournisseur: cleanChartLabel(row?.client_fournisseur || row?.Client_Fournisseur),
+      projet: cleanChartLabel(row?.projet || row?.Projet)
     };
   }
 
@@ -505,6 +684,7 @@
     const map = new Map();
     rows.forEach((row) => {
       const key = keyFn(row);
+      if (isPlaceholderLabel(key)) return;
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(row);
     });
@@ -576,7 +756,7 @@
     const ratioDepRev = totalRevenue > 0 ? (totalExpense / totalRevenue) * 100 : 0;
     const volatility = stdDev(tx.map((row) => toNum(row.Montant)));
 
-    const depMap = mapGroup(tx, (row) => row.departement || 'Non renseigné');
+    const depMap = mapGroup(tx, (row) => row.departement);
     const depTotals = Array.from(depMap.entries()).map(([name, rows]) => {
       const signed = rows.reduce((acc, row) => acc + toNum(row.Montant_Signe), 0);
       const amount = rows.reduce((acc, row) => acc + toNum(row.Montant), 0);
@@ -591,7 +771,7 @@
 
     const byExpenseType = mapGroup(
       tx.filter((row) => toNum(row.Montant_Signe) < 0),
-      (row) => row.type_depense || 'Non renseigné'
+      (row) => row.type_depense
     );
     const expenseGroups = Array.from(byExpenseType.entries())
       .map(([name, rows]) => ({
@@ -600,7 +780,7 @@
       }))
       .sort((a, b) => b.value - a.value);
 
-    const byTransactionType = mapGroup(tx, (row) => row.type_transaction || 'Non renseigné');
+    const byTransactionType = mapGroup(tx, (row) => row.type_transaction);
     const txGroups = Array.from(byTransactionType.entries())
       .map(([name, rows]) => ({
         name,
@@ -661,7 +841,7 @@
       select.remove(1);
     }
 
-    const uniqueValues = [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'fr'));
+    const uniqueValues = [...new Set(values.filter((value) => !isPlaceholderLabel(value)))].sort((a, b) => String(a).localeCompare(String(b), 'fr'));
     uniqueValues.forEach((value) => {
       const label = formatter ? formatter(value) : value;
       select.add(new Option(label, value));
@@ -719,7 +899,8 @@
   function groupByDimension(data, dimensionName) {
     const map = new Map();
     (data || []).forEach((row) => {
-      const key = String(row?.[dimensionName] || '').trim() || 'Non renseigné';
+      const key = String(row?.[dimensionName] || '').trim();
+      if (isPlaceholderLabel(key)) return;
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(row);
     });
@@ -915,12 +1096,14 @@
     const titleEl = document.getElementById('viewContextTitle');
     const descEl = document.getElementById('viewContextDesc');
     const def = currentViewDef();
-    if (!titleEl || !descEl) return;
+    if (!titleEl && !descEl) return;
 
-    titleEl.textContent = def.title;
+    if (titleEl) titleEl.textContent = def.title;
     const txScope = formatNumber(state.scopedTx.length || 0, 0);
     const kpiScope = formatNumber(state.scopedKpis.length || 0, 0);
-    descEl.textContent = `${def.description} Périmètre actif: ${txScope} transactions, ${kpiScope} KPI.`;
+    if (descEl) {
+      descEl.textContent = `${def.description} Périmètre actif: ${txScope} transactions, ${kpiScope} KPI.`;
+    }
   }
 
   function setActiveView(nextView, triggerRefresh = true) {
@@ -1181,6 +1364,44 @@
     if (badge) {
       badge.textContent = String(cards.length);
     }
+  }
+
+  function formatDecisionValue(card) {
+    if (card.format === 'currency') return formatCurrency(card.value, 2);
+    if (card.format === 'percent') return formatPercent(card.value, 1);
+    if (card.format === 'number') return formatNumber(card.value, 0);
+    return escapeHtml(String(card.value || 'N/A'));
+  }
+
+  function renderDecisionKpiCards() {
+    const grid = document.getElementById('decisionKpiGrid');
+    if (!grid) return;
+
+    const cards = Array.isArray(state.decisionKpis) ? state.decisionKpis : [];
+    if (!cards.length) {
+      grid.innerHTML = '<div class="text-muted">Aucun indicateur décisionnel disponible pour l’instant.</div>';
+      return;
+    }
+
+    grid.innerHTML = cards.map((card) => {
+      const cls = trendClass(card.trend);
+      const icon = trendIcon(card.trend);
+      return `
+        <article class="kpi-card" style="--kpi-line:${card.line || 'linear-gradient(90deg,#6366f1,#8b5cf6)'};">
+          <div class="kpi-head">
+            <div>
+              <div class="kpi-label">${escapeHtml(card.label)}</div>
+            </div>
+            <div class="kpi-icon"><i class="bi ${escapeHtml(card.icon || 'bi-bar-chart-line')}"></i></div>
+          </div>
+          <div class="kpi-value">${formatDecisionValue(card)}</div>
+          <div class="kpi-foot">
+            <div class="kpi-context">${escapeHtml(card.context || '')}</div>
+            <div class="kpi-trend ${cls}"><i class="bi ${icon}"></i>${formatPercent(Math.abs(card.trend || 0), 1)}</div>
+          </div>
+        </article>
+      `;
+    }).join('');
   }
 
   function renderInsights() {
@@ -1932,6 +2153,7 @@
     hideEmptyState();
     renderHeaderSummary();
     renderKpiCards();
+    renderDecisionKpiCards();
     renderInsights();
     renderSummary();
     renderContributors();
@@ -1945,7 +2167,7 @@
   }
 
   async function fetchKpisWithFallback() {
-    let kpiPayload = await fetchJson('/api/kpi?limit=1000', { method: 'GET' }, true);
+    let kpiPayload = await fetchJson('/api/kpi?limit=10000', { method: 'GET' }, true);
 
     const hasGlobal = (kpiPayload.kpis || []).some((row) => String(row?.periode || '').toLowerCase() === 'global');
     if (!hasGlobal && state.allTx.length) {
@@ -1954,7 +2176,7 @@
         json: true,
         body: JSON.stringify({ source: 'etl_auto' })
       }, true);
-      kpiPayload = await fetchJson('/api/kpi?limit=1000', { method: 'GET' }, true);
+      kpiPayload = await fetchJson('/api/kpi?limit=10000', { method: 'GET' }, true);
     }
 
     return kpiPayload.kpis || [];
@@ -1962,26 +2184,69 @@
 
   async function loadData(forceRefreshKpi = false) {
     const runId = ++fetchSequence;
+    const forceRefresh = consumeForceRefreshFlag();
+    const cache = !forceRefresh ? loadAnalyticsCache() : null;
+    if (cache) {
+      // Si un cache valide existe, on l'affiche immédiatement.
+      // Le rafraîchissement réseau se fera ensuite pour actualiser si besoin.
+      setAnalysisLoadingState({
+        tone: 'info',
+        spinning: true,
+        title: 'Affichage rapide depuis votre dernier import...',
+        lines: ['Nous utilisons les données stockées localement pour afficher les résultats immédiatement.'],
+      });
+      applyAnalyticsCache(cache);
+    }
+
+    setAnalysisLoadingState({
+      tone: 'info',
+      spinning: true,
+      title: 'Analyse en cours...',
+      lines: [
+        'Nous préparons vos indicateurs financiers et vos graphiques.',
+        'Cette opération peut prendre quelques secondes selon la taille du fichier importé.',
+      ],
+    });
+
     const summaryStarted = performance.now();
     const summaryPromise = fetchJson('/api/dashboard/summary', { method: 'GET' }, true)
       .then((payload) => ({ payload, elapsed: performance.now() - summaryStarted }))
       .catch((error) => ({ error, elapsed: performance.now() - summaryStarted }));
 
     try {
+      setAnalysisLoadingState({
+        tone: 'info',
+        spinning: true,
+        title: 'Chargement des indicateurs principaux...',
+        lines: ['Nous préparons vos indicateurs financiers et vos graphiques.'],
+      });
       const analyticsPayload = await fetchJson('/api/analytics/data', { method: 'GET' }, true);
       if (runId !== fetchSequence) return;
 
       state.analyticsReady = analyticsPayload.analytics_ready !== false;
       state.analyticsMessage = analyticsPayload.message || '';
+      state.analyticsImportedAt = analyticsPayload.imported_at || null;
       const analyticsRows = Array.isArray(analyticsPayload.data)
         ? analyticsPayload.data
         : (Array.isArray(analyticsPayload.rows) ? analyticsPayload.rows : []);
 
       if (!state.analyticsReady || !analyticsRows.length) {
+        setAnalysisLoadingState({
+          tone: 'warning',
+          spinning: false,
+          title: state.analyticsMessage || defaultEmptyMessage,
+          lines: [],
+        });
         clearDashboard(state.analyticsMessage || defaultEmptyMessage);
         return;
       }
 
+      setAnalysisLoadingState({
+        tone: 'info',
+        spinning: true,
+        title: 'Préparation des graphiques financiers...',
+        lines: ['Chargement d’un aperçu des transactions...'],
+      });
       state.allTx = analyticsRows.map(normalizeTxRow);
 
       if (forceRefreshKpi) {
@@ -1994,6 +2259,7 @@
 
       state.allKpis = await fetchKpisWithFallback();
       state.lastLoadedAt = new Date();
+      saveAnalyticsCache(analyticsPayload.import_id, analyticsPayload.imported_at);
 
       const summaryProbe = await summaryPromise;
       if (summaryProbe?.error?.code === 'AUTH_REQUIRED') {
@@ -2001,6 +2267,7 @@
         return;
       }
       const summaryPayload = summaryProbe?.payload || null;
+      state.decisionKpis = Array.isArray(summaryPayload?.decision_kpis) ? summaryPayload.decision_kpis : [];
       const elapsedMs = Number(summaryProbe?.elapsed || 0);
       const backendMs = Number(summaryPayload?.response_ms || 0);
       if ((backendMs > 3000 || elapsedMs > 3000) && summaryPayload) {
@@ -2009,22 +2276,35 @@
 
       populateFilters();
       refreshPipeline();
+      setAnalysisLoadingState({
+        tone: 'success',
+        spinning: false,
+        title: 'Analyse prête.',
+        lines: [],
+      });
+      hideAnalysisLoadingState(600);
     } catch (error) {
       if (error?.code === 'AUTH_REQUIRED') {
         forceLogout(error.message || sessionExpiredMessage);
         return;
       }
-      const msg = String(error?.message || '');
-      const status = Number(error?.status || 0);
-      if (status === 404 && msg.toLowerCase().includes('aucun import disponible')) {
+      if (isNoImportError(error)) {
+        setAnalysisLoadingState({
+          tone: 'warning',
+          spinning: false,
+          title: defaultEmptyMessage,
+          lines: [],
+        });
         clearDashboard(defaultEmptyMessage);
         return;
       }
-      if (msg.toLowerCase().includes('aucun import disponible')) {
-        clearDashboard(defaultEmptyMessage);
-        return;
-      }
-      clearDashboard(error?.message || 'Erreur lors du chargement des données analytiques.');
+      setAnalysisLoadingState({
+        tone: 'danger',
+        spinning: false,
+        title: ANALYSIS_LOAD_ERROR_PRIMARY,
+        lines: [ANALYSIS_LOAD_ERROR_SECONDARY],
+      });
+      clearDashboard(error?.message || ANALYSIS_LOAD_ERROR_PRIMARY);
       toast(error?.message || 'Chargement impossible.', 'error');
     }
   }
@@ -2108,12 +2388,29 @@
         if (!question) return;
 
         sendBtn.disabled = true;
-        renderAiResponse(`
-          <div class="d-flex align-items-center gap-2 mb-2 text-muted">
-            <span class="ai-dot-anim"><span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span></span>
-            Analyse en cours...
-          </div>
-        `);
+        let longRunning = false;
+        const renderWaiting = () => {
+          const extra = longRunning
+            ? '<div class="small text-warning mt-2">L’analyse prend un peu plus de temps que prévu, mais le traitement continue.</div>'
+            : '';
+          renderAiResponse(`
+            <div class="d-flex align-items-start gap-2 mb-2 text-muted">
+              <span class="ai-dot-anim"><span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span></span>
+              <div>
+                <div>L’assistant IA analyse vos données financières...</div>
+                <div>La réponse peut prendre quelques secondes selon le modèle utilisé.</div>
+                <div>Génération de la réponse en cours...</div>
+                <div>Merci de patienter.</div>
+                ${extra}
+              </div>
+            </div>
+          `);
+        };
+        renderWaiting();
+        const slowTimer = window.setTimeout(() => {
+          longRunning = true;
+          renderWaiting();
+        }, 4500);
 
         try {
           const answer = await sendChatbotMessage(question);
@@ -2123,8 +2420,13 @@
             forceLogout(error.message || sessionExpiredMessage);
             return;
           }
-          renderAiResponse(`<strong>Question:</strong> ${escapeHtml(question)}<br><strong>Réponse:</strong> Je n'ai pas pu répondre pour le moment.`);
+          renderAiResponse(`
+            <strong>Question:</strong> ${escapeHtml(question)}<br>
+            <strong>Réponse:</strong> Impossible de charger les résultats pour le moment. Veuillez vérifier vos données importées puis réessayer.<br>
+            <span class="text-muted">Le traitement n’a pas pu être terminé. Vous pouvez relancer l’analyse dans quelques instants.</span>
+          `);
         } finally {
+          window.clearTimeout(slowTimer);
           sendBtn.disabled = false;
         }
       });
@@ -2294,6 +2596,10 @@
     toast('Export PDF généré.', 'success');
   }
 
+  function printDashboard() {
+    window.print();
+  }
+
   function exportKpiDoc() {
     if (!state.computed) {
       toast('Aucune donnée KPI à exporter.', 'error');
@@ -2335,6 +2641,7 @@
     document.getElementById('exportKpiPdf')?.addEventListener('click', () => {
       exportKpiPdf().catch(() => toast('Export PDF impossible.', 'error'));
     });
+    document.getElementById('printDashboardButton')?.addEventListener('click', printDashboard);
     document.getElementById('exportKpiDocx')?.addEventListener('click', exportKpiDoc);
   }
 
@@ -2441,6 +2748,12 @@
   }
 
   boot().catch((error) => {
+    setAnalysisLoadingState({
+      tone: 'danger',
+      spinning: false,
+      title: ANALYSIS_LOAD_ERROR_PRIMARY,
+      lines: [ANALYSIS_LOAD_ERROR_SECONDARY],
+    });
     clearDashboard(error?.message || 'Erreur inattendue.');
   });
 })();

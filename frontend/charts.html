@@ -20,6 +20,13 @@
 <link href="css/app-ux.css" rel="stylesheet">
 <link href="css/charts-global-theme.css" rel="stylesheet">
 <link href="css/charts-executive.css" rel="stylesheet">
+<style>
+  @media print {
+    body * { visibility: hidden !important; }
+    #dashboardCaptureArea, #dashboardCaptureArea * { visibility: visible !important; }
+    #dashboardCaptureArea { position: absolute; top: 0; left: 0; width: 100%; }
+  }
+</style>
 <script src="js/theme-manager.js"></script>
 <script>
   window.AUTH_STORAGE_MODE = window.AUTH_STORAGE_MODE || 'session';
@@ -111,6 +118,7 @@
             <li><button class="dropdown-item" id="exportKpiImage" type="button"><i class="bi bi-card-image me-2"></i>Exporter en PNG</button></li>
             <li><button class="dropdown-item" id="exportKpiJpg" type="button"><i class="bi bi-image-alt me-2"></i>Exporter en JPG</button></li>
             <li><button class="dropdown-item" id="exportKpiPdf" type="button"><i class="bi bi-file-earmark-pdf me-2"></i>Exporter en PDF</button></li>
+            <li><button class="dropdown-item" id="printDashboardButton" type="button"><i class="bi bi-printer me-2"></i>Imprimer le dashboard</button></li>
             <li><button class="dropdown-item" id="exportKpiDocx" type="button"><i class="bi bi-file-earmark-word me-2"></i>Exporter en DOCX</button></li>
             <li><button class="dropdown-item" id="exportKpiCsv" type="button"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Exporter en CSV</button></li>
           </ul>
@@ -129,6 +137,18 @@
         </div>
         <div class="col-lg-4">
           <div class="exec-meta" id="lastUpdated">Dernière mise à jour: --</div>
+        </div>
+      </div>
+
+      <div id="analysisLoadingState" class="alert alert-info py-2 px-3 mb-3 d-none" role="status" aria-live="polite">
+        <div class="d-flex align-items-start gap-2">
+          <span id="analysisLoadingSpinner" class="spinner-border spinner-border-sm mt-1" aria-hidden="true"></span>
+          <div>
+            <div class="fw-semibold" id="analysisLoadingTitle">Analyse en cours...</div>
+            <div class="small text-muted" id="analysisLoadingLine1"></div>
+            <div class="small text-muted" id="analysisLoadingLine2"></div>
+            <div class="small text-muted" id="analysisLoadingLine3"></div>
+          </div>
         </div>
       </div>
 

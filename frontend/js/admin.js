@@ -373,7 +373,13 @@ async function submitAddUser() {
       headers: authHeaders(true),
       body: JSON.stringify({ firstname, lastname, email, password, role })
     });
-    const d = await r.json();
+    const text = await r.text();
+    let d;
+    try {
+      d = JSON.parse(text || '{}');
+    } catch (parseError) {
+      d = { error: 'Erreur serveur inattendue' };
+    }
 
     if (d.error) {
       errEl.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i>${escapeHtml(d.error)}`;
