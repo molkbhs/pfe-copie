@@ -410,3 +410,48 @@ body {
 }
 .cp-send-btn:hover { transform: scale(1.08); box-shadow: 0 4px 14px rgba(31,181,181,0.4); }
 .cp-send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ===============================
+   Mobile / small screens tweaks
+   Ensure sidebar hides and main content fills viewport
+================================ */
+@media (max-width: 768px) {
+    :root { --hist-width: 240px; }
+
+    /* Hide sidebar by default on small screens; show when not collapsed */
+    .hist-sidebar {
+        transform: translateX(-100%);
+        width: 100%;
+        left: 0;
+        top: 74px;
+        height: calc(100vh - 74px);
+        position: fixed;
+        z-index: 1002;
+    }
+
+    /* When the sidebar is not collapsed, slide it in */
+    .hist-sidebar:not(.collapsed) {
+        transform: translateX(0);
+    }
+
+    /* Ensure main content takes full width when sidebar hidden */
+    .page-shell > .container,
+    .page-shell > #mainContainer {
+        margin-left: 0 !important;
+        padding: 12px;
+    }
+
+    /* Chatbot panel / launcher adapt */
+    .chatbot-panel {
+        right: 12px;
+        left: 12px;
+        width: auto;
+        height: 60vh;
+        bottom: 90px;
+        border-radius: 12px;
+    }
+    .chatbot-launcher { right: 18px; bottom: 18px; }
+
+    /* Make toggle tab visible and smaller */
+    .hist-toggle-btn { right: 8px; }
+}

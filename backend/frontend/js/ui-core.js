@@ -219,6 +219,20 @@ window.UICore = {
         });
     },
 
+    bindSidebarToggle: function(options = {}) {
+        const btnId = options.buttonId || 'histToggle';
+        const sidebarId = options.sidebarId || 'histSidebar';
+        const btn = document.getElementById(btnId);
+        const sidebar = document.getElementById(sidebarId);
+        if (!btn || !sidebar) return;
+        if (btn.dataset.uicoreBound === '1') return;
+        btn.dataset.uicoreBound = '1';
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            sidebar.classList.toggle('collapsed');
+        });
+    },
+
     getDisplayName: function(user) {
         if (!user) return 'Utilisateur';
         const full = `${user.firstname || ''} ${user.lastname || ''}`.trim();
@@ -335,6 +349,9 @@ window.UICore = {
                 this.initAdminLink(fresh.role, options.adminOptions || {});
             }).catch(() => {});
         }
+
+        // Enable sidebar toggle binding for small screens
+        try { this.bindSidebarToggle(); } catch (_) { /* noop */ }
 
         return user;
     },
